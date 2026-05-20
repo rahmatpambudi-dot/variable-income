@@ -20,7 +20,7 @@ from google.oauth2.service_account import Credentials
 # ── Config ────────────────────────────────────────────────────────────────────
 
 # Sheet tab name untuk RAW DATA OT
-OT_SHEET_TAB = 'RAW DATA'
+OT_SHEET_TAB = 'Raw Data'
 
 # Mapping site insentif → filter kondisi di OT (Location Name contains + BU filter)
 # Format: insentif_site → {'loc_contains': [...], 'bu': [...]}
