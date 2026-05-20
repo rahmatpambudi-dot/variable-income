@@ -19,7 +19,7 @@ from google.oauth2.service_account import Credentials
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-OT_SHEET_TAB = 'Raw Data'
+OT_SHEET_TAB = 'RAW DATA'
 
 # NIK yang difilter (dummy/test accounts)
 DUMMY_NIKS = {'999999', '0', ''}
@@ -136,12 +136,12 @@ def extract_ot(wb_ot):
     ci = {
         'nik'      : col_idx(headers, 'Employee ID'),
         'name'     : col_idx(headers, 'Employee Name'),
-        'month'    : col_idx(headers, 'Month'),
-        'hours'    : col_idx(headers, 'Total OT Hour Paid'),
-        'idr'      : col_idx(headers, 'OT (IDR)'),
-        'location' : col_idx(headers, 'Location Name'),
-        'bu'       : col_idx(headers, 'BU'),
-        'site_cat' : col_idx(headers, 'Site Category'),
+        'month'    : col_idx(headers, 'Total OT Hour/Month'),
+        'hours'    : col_idx(headers, 'Total OT Hour/Total OT Hour Paid'),
+        'idr'      : col_idx(headers, 'Total OT Hour/OT (IDR)'),
+        'location' : col_idx(headers, 'Total OT Hour/Location Name'),
+        'bu'       : col_idx(headers, 'Total OT Hour/BU'),
+        'site_cat' : col_idx(headers, 'Total OT Hour/Site Category'),
     }
     print(f'  Column indices: {ci}')
 
