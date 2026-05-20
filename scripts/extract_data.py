@@ -54,6 +54,29 @@ def to_num(v):
     except:
         return 0.0
 
+# ── Site Category Override ───────────────────────────────────────────────────
+# Koreksi site_cat yang salah/kosong di Raw Data
+SITE_CAT_OVERRIDE = {
+    'DC BALI - DENPASAR'            : 'HUB',
+    'DC HANKAM RAYA'                : 'HUB',
+    'DC TALLO MAKASSAR'             : 'RDC',
+    'DC TALLO MAKASSAR (AHI)'       : 'RDC',
+    'DC TANJUNG MORAWA MEDAN'       : 'RDC',
+    'DC TANJUNG MORAWA MEDAN (KLS)' : 'RDC',
+    'DC TANJUNG MORAWA (AHI)'       : 'RDC',
+    'DC CIKANDE'                    : 'Lainnya',
+    'DC CIKANDE 2'                  : 'Lainnya',
+    'DC CIKANDE - SERANG KM 41'     : 'Lainnya',
+}
+
+def get_site_cat(location, raw_site_cat):
+    """Ambil site_cat dengan override kalau perlu"""
+    loc_upper = str(location).strip().upper()
+    for key, cat in SITE_CAT_OVERRIDE.items():
+        if key.upper() in loc_upper:
+            return cat
+    return raw_site_cat if raw_site_cat else 'Lainnya'
+
 def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
     return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
@@ -217,7 +240,7 @@ def extract_ot_and_map(wb_ot, site_niks):
             ot_data[nik] = {
                 'name'    : name,
                 'location': location,
-                'site_cat': site_cat,
+                'site_cat': get_site_cat(location, site_cat),
                 'bu'      : bu,
                 'months'  : defaultdict(lambda: {'hours': 0.0, 'idr': 0.0}),
             }
