@@ -19,7 +19,7 @@ from google.oauth2.service_account import Credentials
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-OT_SHEET_TAB = 'RAW DATA'
+OT_SHEET_TAB = 'Raw Data'
 
 # NIK yang difilter (dummy/test accounts)
 DUMMY_NIKS = {'999999', '0', ''}
