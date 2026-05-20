@@ -19,7 +19,7 @@ from google.oauth2.service_account import Credentials
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-OT_SHEET_TAB = 'Raw Data'
+OT_SHEET_TAB = 'RAW DATA'
 
 # NIK yang difilter (dummy/test accounts)
 DUMMY_NIKS = {'999999', '0', ''}
@@ -130,7 +130,8 @@ def extract_ot(wb_ot):
         print('  [ERROR] Sheet kosong!')
         return {}
 
-    headers = all_rows[0]
+    # Header ada di row ke-2 (index 1), row ke-1 adalah judul/kosong
+    headers = all_rows[1]
     total_cols = len(headers)
     print(f'  {total_cols} kolom, {len(all_rows)-1} baris data')
 
@@ -172,7 +173,7 @@ def extract_ot(wb_ot):
     skipped_dummy = 0
     skipped_nomonth = 0
 
-    for row in all_rows[1:]:
+    for row in all_rows[2:]:
         def g(c): return row[c].strip() if 0 <= c < len(row) else ''
 
         nik      = g(ci['nik'])
@@ -249,7 +250,7 @@ def extract_insentif(wb_ins):
                 continue
 
             count = 0
-            for row in all_rows[1:]:
+            for row in all_rows[2:]:
                 def g(c): return row[c].strip() if 0 <= c < len(row) else ''
 
                 nik   = g(ci['nik'])
