@@ -190,8 +190,15 @@ def extract_ot(wb_ot):
             skipped_dummy += 1
             continue
 
-        # Filter bulan tidak valid
+        # Normalize month — bisa angka (1-12) atau nama English
+        MONTH_NUM_MAP = {
+            '1':'January','2':'February','3':'March','4':'April',
+            '5':'May','6':'June','7':'July','8':'August',
+            '9':'September','10':'October','11':'November','12':'December'
+        }
         if month not in MONTH_ORDER:
+            month = MONTH_NUM_MAP.get(str(month).strip(), '')
+        if not month:
             skipped_nomonth += 1
             continue
 
