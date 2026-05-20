@@ -1,8 +1,7 @@
 """
 extract_data.py
-Base data = MPP dari insentif (per site tab)
-Join OT by NIK
-Output: per driver → NIK, Nama, Site, OT, Insentif, Total
+Auto-mapping: cross-match NIK dari insentif tab ke Location Name di OT.
+Base data = OT (semua driver), join insentif by NIK.
 """
 
 import os, json, re, time
@@ -29,11 +28,7 @@ MONTH_ORDER = [
     'January','February','March','April','May','June',
     'July','August','September','October','November','December'
 ]
-MONTH_NUM_MAP = {
-    '1':'January','2':'February','3':'March','4':'April',
-    '5':'May','6':'June','7':'July','8':'August',
-    '9':'September','10':'October','11':'November','12':'December'
-}
+MONTH_NUM_MAP = {str(i+1): m for i, m in enumerate(MONTH_ORDER)}
 MONTH_ID = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
 SCOPES = [
@@ -59,25 +54,42 @@ def to_num(v):
     except:
         return 0.0
 
-def is_dummy(nik, name):
+def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
-    name_up = str(name).strip().upper()
-    return any(kw in name_up for kw in DUMMY_NAME_KEYWORDS)
+    return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
 
 def normalize_month(m):
     m = str(m).strip()
     if m in MONTH_ORDER: return m
     return MONTH_NUM_MAP.get(m, '')
 
-# ── Extract Insentif (BASE MPP) ───────────────────────────────────────────────
+def col_first(headers, name):
+    for i, h in enumerate(headers):
+        if str(h).strip().lower() == name.strip().lower(): return i
+    return -1
 
-def extract_insentif(wb_ins):
+def col_last(headers, name):
+    for i in range(len(headers)-1, -1, -1):
+        if str(headers[i]).strip().lower() == name.strip().lower(): return i
+    return -1
+
+def col_contains_last(headers, keyword):
+    for i in range(len(headers)-1, -1, -1):
+        if keyword.lower() in str(headers[i]).strip().lower(): return i
+    return -1
+
+# ── Step 1: Extract Insentif NIKs per site ────────────────────────────────────
+
+def extract_insentif_niks(wb_ins):
     """
-    Base data = semua driver dari sheet insentif per site.
-    Return: dict NIK → {name, site, months: {month: insentif_idr}}
+    Baca semua tab insentif.
+    Return:
+      - nik_to_ins: dict NIK → {name, site, months: {month: idr}}
+      - site_niks: dict site → set of NIKs
     """
-    print('\n📥 Extracting Insentif (MPP base)...')
-    mpp = {}
+    print('\n📥 Step 1: Extract insentif NIKs per site...')
+    nik_to_ins = {}
+    site_niks = {}
 
     for i, site in enumerate(INSENTIF_SITES):
         try:
@@ -88,21 +100,18 @@ def extract_insentif(wb_ins):
                 continue
 
             headers = all_rows[0]
-            def ci(name):
-                for j, h in enumerate(headers):
-                    if str(h).strip().lower() == name.lower(): return j
-                return -1
-
-            c_nik   = ci('NIK1')
-            c_name  = ci('driver')
-            c_month = ci('Month Rev')
-            c_ins   = ci('Insentif per MPP')
+            c_nik   = col_first(headers, 'NIK1')
+            c_name  = col_first(headers, 'driver')
+            c_month = col_first(headers, 'Month Rev')
+            c_ins   = col_first(headers, 'Insentif per MPP')
 
             if c_nik < 0:
-                print(f'  [WARN] {site}: kolom NIK1 tidak ditemukan, headers: {headers[:5]}')
+                print(f'  [WARN] {site}: kolom NIK1 tidak ditemukan')
                 continue
 
+            niks_in_site = set()
             count = 0
+
             for row in all_rows[1:]:
                 def g(c): return row[c].strip() if 0 <= c < len(row) else ''
                 nik   = g(c_nik)
@@ -113,17 +122,20 @@ def extract_insentif(wb_ins):
                 if is_dummy(nik, name) or not nik or not month:
                     continue
 
-                if nik not in mpp:
-                    mpp[nik] = {
+                niks_in_site.add(nik)
+
+                if nik not in nik_to_ins:
+                    nik_to_ins[nik] = {
                         'name'  : name,
                         'site'  : site,
                         'months': defaultdict(float),
                     }
-
-                mpp[nik]['months'][month] += ins
+                nik_to_ins[nik]['months'][month] += ins
                 count += 1
 
-            print(f'  ✅ {site}: {count} rows, {len([k for k,v in mpp.items() if v["site"]==site])} drivers')
+            site_niks[site] = niks_in_site
+            print(f'  ✅ {site}: {len(niks_in_site)} unique NIKs, {count} rows')
+
             if i < len(INSENTIF_SITES) - 1:
                 time.sleep(3)
 
@@ -132,56 +144,51 @@ def extract_insentif(wb_ins):
         except Exception as e:
             print(f'  [ERROR] {site}: {e}')
 
-    print(f'  Total MPP drivers: {len(mpp)}')
-    return mpp
+    print(f'  Total insentif NIKs: {len(nik_to_ins)}')
+    return nik_to_ins, site_niks
 
-# ── Extract OT ────────────────────────────────────────────────────────────────
+# ── Step 2: Extract OT & Auto-Map ─────────────────────────────────────────────
 
-def extract_ot(wb_ot):
+def extract_ot_and_map(wb_ot, site_niks):
     """
     Baca RAW DATA OT.
-    Return: dict NIK → {name, site, site_cat, location, bu, months: {month: {hours, idr}}}
+    Auto-map: untuk setiap NIK yang ada di insentif,
+    catat Location Name yang dipakai di OT.
+    Return:
+      - ot_data: dict NIK → {name, location, site_cat, bu, months}
+      - site_mapping: dict ins_site → set of OT location names
     """
-    print('\n📥 Extracting OT data...')
+    print('\n📥 Step 2: Extract OT & auto-map sites...')
     ws = wb_ot.worksheet(OT_SHEET_TAB)
     print('  Fetching all rows...')
     all_rows = ws.get_all_values()
-    if len(all_rows) < 2:
+    if len(all_rows) < 3:
         print('  [ERROR] Sheet kosong!')
-        return {}
+        return {}, {}
 
-    # Header di row ke-2 (index 1)
-    headers = all_rows[1]
+    headers = all_rows[1]  # header di row ke-2
     print(f'  {len(headers)} kolom, {len(all_rows)-2} baris data')
 
-    def col_first(name):
-        for j, h in enumerate(headers):
-            if str(h).strip().lower() == name.strip().lower(): return j
-        return -1
-
-    def col_last(name):
-        for j in range(len(headers)-1, -1, -1):
-            if str(headers[j]).strip().lower() == name.strip().lower(): return j
-        return -1
-
-    def col_contains_last(keyword):
-        for j in range(len(headers)-1, -1, -1):
-            if keyword.lower() in str(headers[j]).strip().lower(): return j
-        return -1
-
     ci = {
-        'nik'      : col_first('Employee ID'),
-        'name'     : col_first('Employee Name'),
-        'month'    : col_last('Month'),
-        'hours'    : col_contains_last('OT Hour Paid'),
-        'idr'      : col_contains_last('OT (IDR)'),
-        'location' : col_last('Location Name'),
-        'bu'       : col_last('BU'),
-        'site_cat' : col_last('Site Category'),
+        'nik'      : col_first(headers, 'Employee ID'),
+        'name'     : col_first(headers, 'Employee Name'),
+        'month'    : col_last(headers, 'Month'),
+        'hours'    : col_contains_last(headers, 'OT Hour Paid'),
+        'idr'      : col_contains_last(headers, 'OT (IDR)'),
+        'location' : col_last(headers, 'Location Name'),
+        'bu'       : col_last(headers, 'BU'),
+        'site_cat' : col_last(headers, 'Site Category'),
     }
     print(f'  Column indices: {ci}')
 
-    ot = {}
+    # Reverse lookup: NIK → insentif site
+    nik_to_ins_site = {}
+    for ins_site, niks in site_niks.items():
+        for nik in niks:
+            nik_to_ins_site[nik] = ins_site
+
+    ot_data = {}
+    site_mapping = defaultdict(set)  # ins_site → set of OT location names
     skipped = 0
 
     for row in all_rows[2:]:
@@ -200,58 +207,78 @@ def extract_ot(wb_ot):
             skipped += 1
             continue
 
-        if nik not in ot:
-            ot[nik] = {
+        # Auto-map: kalau NIK ini ada di insentif, catat locationnya
+        if nik in nik_to_ins_site:
+            ins_site = nik_to_ins_site[nik]
+            if location:
+                site_mapping[ins_site].add(location)
+
+        if nik not in ot_data:
+            ot_data[nik] = {
                 'name'    : name,
-                'site'    : location,   # display per location name
-                'site_cat': site_cat,
                 'location': location,
+                'site_cat': site_cat,
                 'bu'      : bu,
                 'months'  : defaultdict(lambda: {'hours': 0.0, 'idr': 0.0}),
             }
 
-        ot[nik]['months'][month]['hours'] += hours
-        ot[nik]['months'][month]['idr']   += idr
+        ot_data[nik]['months'][month]['hours'] += hours
+        ot_data[nik]['months'][month]['idr']   += idr
 
-    print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
-    return ot
+    print(f'  ✅ OT: {len(ot_data)} drivers, {skipped} rows skipped')
 
-# ── Detect Months ─────────────────────────────────────────────────────────────
+    # Print mapping hasil auto-detect
+    print('\n🗺️  Auto-detected site mapping:')
+    for ins_site, locations in sorted(site_mapping.items()):
+        print(f'  {ins_site} → {sorted(locations)}')
 
-def detect_months(mpp, ot):
+    return ot_data, dict(site_mapping)
+
+# ── Step 3: Detect Months ─────────────────────────────────────────────────────
+
+def detect_months(nik_to_ins, ot_data):
     month_set = set()
-    for d in mpp.values(): month_set.update(d['months'].keys())
-    for d in ot.values():  month_set.update(d['months'].keys())
+    for d in nik_to_ins.values(): month_set.update(d['months'].keys())
+    for d in ot_data.values():    month_set.update(d['months'].keys())
     months = sorted(month_set, key=lambda m: MONTH_ORDER.index(m))
     print(f'\n📅 Months: {months}')
     return months
 
-# ── Build Driver Data ─────────────────────────────────────────────────────────
+# ── Step 4: Build Driver Data ─────────────────────────────────────────────────
 
-def build_driver_data(mpp, ot, months):
+def build_driver_data(nik_to_ins, ot_data, site_mapping, months):
     """
-    Base = MPP (insentif). Join OT by NIK.
-    Driver yang ada OT tapi tidak di MPP tetap masuk (OT only).
+    Base = OT (semua driver dari Raw Data).
+    Join insentif by NIK.
     """
-    all_niks = set(mpp.keys()) | set(ot.keys())
+    all_niks = set(ot_data.keys()) | set(nik_to_ins.keys())
+
+    # Build reverse: OT location → insentif site (from auto-mapping)
+    location_to_ins_site = {}
+    for ins_site, locations in site_mapping.items():
+        for loc in locations:
+            location_to_ins_site[loc] = ins_site
+
     drivers = []
 
     for nik in all_niks:
-        m = mpp.get(nik)
-        o = ot.get(nik)
+        o = ot_data.get(nik)
+        ins = nik_to_ins.get(nik)
 
-        # Nama & site dari MPP kalau ada, else dari OT
-        if m:
-            name = m['name']
-            site = m['site']
+        if o:
+            name     = o['name']
+            location = o['location']
+            site_cat = o['site_cat']
+            bu       = o['bu']
+            # Tentukan insentif site label dari mapping
+            ins_site_label = location_to_ins_site.get(location, '')
+            display_site   = ins_site_label if ins_site_label else location
         else:
-            name = o['name'] if o else nik
-            site = o['site_cat'] if o else '-'
-
-        # Site category dari OT kalau ada
-        site_cat = o['site_cat'] if o else ''
-        location = o['location'] if o else ''
-        bu       = o['bu'] if o else ''
+            name     = ins['name'] if ins else nik
+            location = ''
+            site_cat = ''
+            bu       = ''
+            display_site = ins['site'] if ins else '-'
 
         monthly = {}
         total_ot_hours = 0.0
@@ -261,27 +288,27 @@ def build_driver_data(mpp, ot, months):
         for month in months:
             ot_h   = o['months'][month]['hours'] if o and month in o['months'] else 0.0
             ot_idr = o['months'][month]['idr']   if o and month in o['months'] else 0.0
-            ins    = m['months'][month]           if m and month in m['months'] else 0.0
+            ins_m  = ins['months'][month]         if ins and month in ins['months'] else 0.0
 
             monthly[month] = {
                 'ot_hours': round(ot_h, 2),
                 'ot_idr'  : round(ot_idr),
-                'insentif': round(ins),
-                'total'   : round(ot_idr + ins),
+                'insentif': round(ins_m),
+                'total'   : round(ot_idr + ins_m),
             }
             total_ot_hours += ot_h
             total_ot_idr   += ot_idr
-            total_ins      += ins
+            total_ins      += ins_m
 
         drivers.append({
             'nik'           : nik,
             'name'          : name,
-            'site'          : site,
+            'site'          : display_site,
             'site_cat'      : site_cat,
             'location'      : location,
             'bu'            : bu,
             'has_ot'        : o is not None,
-            'has_ins'       : m is not None,
+            'has_ins'       : ins is not None,
             'monthly'       : monthly,
             'total_ot_hours': round(total_ot_hours, 2),
             'total_ot_idr'  : round(total_ot_idr),
@@ -291,9 +318,9 @@ def build_driver_data(mpp, ot, months):
 
     drivers.sort(key=lambda x: -x['grand_total'])
 
-    both    = sum(1 for d in drivers if d['has_ot'] and d['has_ins'])
-    ot_only = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
-    ins_only= sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
+    both     = sum(1 for d in drivers if d['has_ot'] and d['has_ins'])
+    ot_only  = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
+    ins_only = sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
     print(f'\n✅ Total drivers: {len(drivers)} (Both: {both}, OT only: {ot_only}, Ins only: {ins_only})')
     return drivers
 
@@ -326,10 +353,10 @@ def main():
     wb_ot  = gc.open_by_key(os.environ['SHEET_ID_OT'])
     wb_ins = gc.open_by_key(os.environ['SHEET_ID_INSENTIF'])
 
-    mpp     = extract_insentif(wb_ins)
-    ot      = extract_ot(wb_ot)
-    months  = detect_months(mpp, ot)
-    drivers = build_driver_data(mpp, ot, months)
+    nik_to_ins, site_niks = extract_insentif_niks(wb_ins)
+    ot_data, site_mapping = extract_ot_and_map(wb_ot, site_niks)
+    months                = detect_months(nik_to_ins, ot_data)
+    drivers               = build_driver_data(nik_to_ins, ot_data, site_mapping, months)
 
     wib = timezone(timedelta(hours=7))
     today = datetime.now(wib)
