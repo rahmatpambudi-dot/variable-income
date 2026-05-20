@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Variable Income 2026</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --accent4: #d2a8ff;
+    --accent5: #ffa657;
+    --ot-color: #58a6ff;
+    --ins-color: #3fb950;
+    --total-color: #d2a8ff;
+    --chip-bg: #21262d;
+    --chip-active: #388bfd1a;
+    --chip-active-border: #388bfd;
+    --shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-logo span { color: var(--text2); font-weight: 400; }
+  .nav-sep { color: var(--border); margin: 0 4px; }
+  .nav-title { font-weight: 600; font-size: 13px; color: var(--text); }
+  .nav-spacer { flex: 1; }
+  .nav-update { color: var(--text3); font-size: 11px; }
+  .nav-refresh {
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .2s;
+  }
+  .nav-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Layout ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active {
+    background: var(--chip-active);
+    border-color: var(--chip-active-border);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .search-wrap { position: relative; margin-left: auto; }
+  .search-wrap input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px 6px 32px;
+    border-radius: 8px;
+    font-size: 12px;
+    width: 220px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: '🔍';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  /* ── Summary Cards ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-label { color: var(--text2); font-size: 11px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .card-value { font-size: 22px; font-weight: 700; }
+  .card-sub { color: var(--text3); font-size: 11px; margin-top: 4px; }
+  .card-ot .card-value { color: var(--ot-color); }
+  .card-ins .card-value { color: var(--ins-color); }
+  .card-total .card-value { color: var(--total-color); }
+  .card-drivers .card-value { color: var(--accent5); }
+
+  /* ── Month selector ── */
+  .month-select {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .month-select label { color: var(--text2); font-size: 11px; margin-right: 4px; }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .table-header h3 { font-size: 14px; font-weight: 600; }
+  .table-count { color: var(--text3); font-size: 11px; }
+  .table-header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  .legend { display: flex; gap: 12px; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface2);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--accent); }
+  thead th.sorted { color: var(--accent); }
+  thead th .sort-icon { margin-left: 4px; opacity: .5; }
+  thead th.sorted .sort-icon { opacity: 1; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+
+  .td-no { color: var(--text3); font-size: 11px; width: 36px; }
+  .td-name { font-weight: 600; font-size: 13px; }
+  .td-nik { color: var(--text3); font-size: 11px; margin-top: 2px; font-family: monospace; }
+  .td-site {
+    display: inline-block;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .site-JBBK { border-color: #388bfd55; color: var(--accent); }
+  .site-CKP  { border-color: #3fb95055; color: var(--accent2); }
+  .site-SDA  { border-color: #d2a8ff55; color: var(--accent4); }
+
+  .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .td-ot  { color: var(--ot-color); font-weight: 600; }
+  .td-ins { color: var(--ins-color); font-weight: 600; }
+  .td-total { color: var(--total-color); font-weight: 700; }
+  .td-hours { color: var(--text2); font-size: 12px; }
+
+  .badge-ot, .badge-ins, .badge-both, .badge-none {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-both { background: #3fb95022; color: var(--accent2); border: 1px solid #3fb95055; }
+  .badge-ot   { background: #388bfd22; color: var(--accent);  border: 1px solid #388bfd55; }
+  .badge-ins  { background: #d2a8ff22; color: var(--accent4); border: 1px solid #d2a8ff55; }
+  .badge-none { background: var(--chip-bg); color: var(--text3); border: 1px solid var(--border); }
+
+  /* ── Month breakdown row ── */
+  .detail-row td {
+    padding: 0;
+    background: #0d111799;
+  }
+  .detail-inner {
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+  }
+  .month-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 130px;
+  }
+  .month-block-title { font-size: 11px; color: var(--text2); font-weight: 600; margin-bottom: 6px; }
+  .month-block-row { display: flex; justify-content: space-between; gap: 16px; font-size: 11px; margin-top: 3px; }
+  .month-block-row span:first-child { color: var(--text3); }
+  .month-ot-val   { color: var(--ot-color); font-weight: 600; }
+  .month-ins-val  { color: var(--ins-color); font-weight: 600; }
+  .month-tot-val  { color: var(--total-color); font-weight: 700; border-top: 1px solid var(--border); padding-top: 3px; margin-top: 3px; }
+
+  .expand-btn {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all .2s;
+  }
+  .expand-btn:hover { background: var(--chip-bg); color: var(--accent); }
+
+  /* ── Pagination ── */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .page-btn {
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .2s;
+    min-width: 32px;
+    text-align: center;
+  }
+  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .page-btn.active { background: var(--chip-active); border-color: var(--chip-active-border); color: var(--accent); font-weight: 600; }
+  .page-btn:disabled { opacity: .3; cursor: default; }
+  .page-info { color: var(--text3); font-size: 11px; }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 48px; color: var(--text3); }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    table { font-size: 12px; }
+    .hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="https://rahmatpambudi-dot.github.io/connectone/" class="nav-logo">
+    ◈ <span>ConnectOne</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Variable Income 2026</span>
+  <span class="nav-spacer"></span>
+  <span class="nav-update" id="updateChip">Update: 19 Mei 2026</span>
+  <button class="nav-refresh" onclick="location.reload()">↻ Refresh</button>
+</nav>
+
+<div class="container">
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="chip-group" id="siteChips">
+      <div class="chip active" data-site="all">Semua Site</div>
+      <div class="chip" data-site="JBBK">JBBK</div>
+      <div class="chip" data-site="CKP">CKP</div>
+      <div class="chip" data-site="SDA">SDA</div>
+    </div>
+
+    <div class="chip-group" id="statusChips">
+      <div class="chip active" data-status="all">Semua</div>
+      <div class="chip" data-status="both">OT + Insentif</div>
+      <div class="chip" data-status="ot">OT Only</div>
+      <div class="chip" data-status="ins">Insentif Only</div>
+    </div>
+
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Cari nama / NIK...">
+    </div>
+  </div>
+
+  <!-- Month selector -->
+  <div class="month-select">
+    <label>Bulan:</label>
+    <div class="chip-group" id="monthChips">
+      <div class="chip active" data-month="all">Semua</div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="cards" id="summaryCards">
+    <div class="card card-drivers">
+      <div class="card-label">Total Driver</div>
+      <div class="card-value" id="cardDrivers">-</div>
+      <div class="card-sub" id="cardDriversSub">-</div>
+    </div>
+    <div class="card card-ot">
+      <div class="card-label">Total OT (IDR)</div>
+      <div class="card-value" id="cardOT">-</div>
+      <div class="card-sub" id="cardOTHours">- jam</div>
+    </div>
+    <div class="card card-ins">
+      <div class="card-label">Total Insentif (IDR)</div>
+      <div class="card-value" id="cardIns">-</div>
+      <div class="card-sub">YTD akumulasi</div>
+    </div>
+    <div class="card card-total">
+      <div class="card-label">Grand Total (IDR)</div>
+      <div class="card-value" id="cardTotal">-</div>
+      <div class="card-sub">OT + Insentif</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>Daftar Driver</h3>
+      <span class="table-count" id="tableCount"></span>
+      <div class="table-header-right">
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--ot-color)"></div>OT</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--ins-color)"></div>Insentif</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--total-color)"></div>Total</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table id="mainTable">
+        <thead>
+          <tr>
+            <th class="td-no">#</th>
+            <th data-sort="name">Nama <span class="sort-icon">↕</span></th>
+            <th data-sort="site">Site <span class="sort-icon">↕</span></th>
+            <th data-sort="total_ot_hours" class="td-num hide-mobile">Jam OT <span class="sort-icon">↕</span></th>
+            <th data-sort="total_ot_idr" class="td-num">OT (IDR) <span class="sort-icon">↕</span></th>
+            <th data-sort="total_ins" class="td-num">Insentif (IDR) <span class="sort-icon">↕</span></th>
+            <th data-sort="grand_total" class="td-num sorted">Grand Total <span class="sort-icon">↓</span></th>
+            <th class="hide-mobile">Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Data (injected by extract_data.py) ───────────────────────────────────────
+const MONTHS=["January","February","March","April"];
+const DRIVERS=[];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = {
+  site: 'all',
+  status: 'all',
+  month: 'all',
+  search: '',
+  sortKey: 'grand_total',
+  sortDir: -1,
+  page: 1,
+  perPage: 25,
+  expanded: new Set(),
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n) => {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'M';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'jt';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'rb';
+  return n.toString();
+};
+const fmtFull = (n) => n.toLocaleString('id-ID');
+const fmtH = (h) => h > 0 ? h.toFixed(1) + ' jam' : '-';
+const monthShort = (m) => m.substring(0,3);
+
+// ── Driver value for selected month ───────────────────────────────────────────
+function driverVal(d, key) {
+  if (state.month === 'all') return d[key];
+  const m = d.monthly[state.month];
+  if (!m) return 0;
+  if (key === 'total_ot_idr') return m.ot_idr;
+  if (key === 'total_ins') return m.insentif;
+  if (key === 'grand_total') return m.total;
+  if (key === 'total_ot_hours') return m.ot_hours;
+  return 0;
+}
+
+// ── Filter & Sort ─────────────────────────────────────────────────────────────
+function filtered() {
+  return DRIVERS.filter(d => {
+    if (state.site !== 'all' && d.site !== state.site) return false;
+    if (state.status === 'both' && !(d.has_ot && d.has_ins)) return false;
+    if (state.status === 'ot'   && !(!d.has_ins && d.has_ot)) return false;
+    if (state.status === 'ins'  && !(!d.has_ot && d.has_ins)) return false;
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      if (!d.name.toLowerCase().includes(q) && !d.nik.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const k = state.sortKey;
+    let va = driverVal(a, k), vb = driverVal(b, k);
+    if (typeof va === 'string') return state.sortDir * va.localeCompare(vb);
+    return state.sortDir * (va - vb);
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const data = filtered();
+  const total = data.length;
+  const pages = Math.ceil(total / state.perPage);
+  if (state.page > pages) state.page = Math.max(1, pages);
+  const start = (state.page - 1) * state.perPage;
+  const slice = data.slice(start, start + state.perPage);
+
+  // Summary
+  const totOtIdr   = data.reduce((s,d) => s + driverVal(d,'total_ot_idr'), 0);
+  const totOtHours = data.reduce((s,d) => s + driverVal(d,'total_ot_hours'), 0);
+  const totIns     = data.reduce((s,d) => s + driverVal(d,'total_ins'), 0);
+  const totGrand   = data.reduce((s,d) => s + driverVal(d,'grand_total'), 0);
+  const bothCount  = data.filter(d => d.has_ot && d.has_ins).length;
+  const otOnly     = data.filter(d => d.has_ot && !d.has_ins).length;
+  const insOnly    = data.filter(d => !d.has_ot && d.has_ins).length;
+
+  document.getElementById('cardDrivers').textContent = total.toLocaleString();
+  document.getElementById('cardDriversSub').textContent = `${bothCount} keduanya · ${otOnly} OT only · ${insOnly} ins only`;
+  document.getElementById('cardOT').textContent = 'Rp ' + fmt(totOtIdr);
+  document.getElementById('cardOTHours').textContent = totOtHours.toFixed(1) + ' jam total';
+  document.getElementById('cardIns').textContent = 'Rp ' + fmt(totIns);
+  document.getElementById('cardTotal').textContent = 'Rp ' + fmt(totGrand);
+  document.getElementById('tableCount').textContent = `${total} driver`;
+
+  // Table body
+  const tbody = document.getElementById('tableBody');
+  if (slice.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">🔍</div>Tidak ada data ditemukan</div></td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map((d, i) => {
+      const rank = start + i + 1;
+      const otIdr   = driverVal(d, 'total_ot_idr');
+      const insIdr  = driverVal(d, 'total_ins');
+      const grand   = driverVal(d, 'grand_total');
+      const hours   = driverVal(d, 'total_ot_hours');
+      const isExp   = state.expanded.has(d.nik);
+
+      const badge = d.has_ot && d.has_ins ? '<span class="badge-both">OT+Ins</span>'
+                  : d.has_ot              ? '<span class="badge-ot">OT Only</span>'
+                  : d.has_ins             ? '<span class="badge-ins">Ins Only</span>'
+                  :                         '<span class="badge-none">-</span>';
+
+      const detailRow = isExp ? `
+        <tr class="detail-row" id="detail-${d.nik}">
+          <td colspan="9">
+            <div class="detail-inner">
+              ${MONTHS.map(m => {
+                const mv = d.monthly[m] || {ot_hours:0,ot_idr:0,insentif:0,total:0};
+                if (!mv.ot_idr && !mv.insentif) return '';
+                return `<div class="month-block">
+                  <div class="month-block-title">${monthShort(m)} 2026</div>
+                  <div class="month-block-row"><span>Jam OT</span><span class="month-ot-val">${fmtH(mv.ot_hours)}</span></div>
+                  <div class="month-block-row"><span>OT (IDR)</span><span class="month-ot-val">Rp ${fmtFull(mv.ot_idr)}</span></div>
+                  <div class="month-block-row"><span>Insentif</span><span class="month-ins-val">Rp ${fmtFull(mv.insentif)}</span></div>
+                  <div class="month-block-row month-tot-val"><span>Total</span><span>Rp ${fmtFull(mv.total)}</span></div>
+                </div>`;
+              }).join('')}
+            </div>
+          </td>
+        </tr>` : '';
+
+      return `
+        <tr onclick="toggleDetail('${d.nik}')" style="cursor:pointer">
+          <td class="td-no td-num">${rank}</td>
+          <td>
+            <div class="td-name">${d.name}</div>
+            <div class="td-nik">${d.nik} · ${d.location || d.bu}</div>
+          </td>
+          <td><span class="td-site site-${d.site}">${d.site}</span></td>
+          <td class="td-num td-hours hide-mobile">${fmtH(hours)}</td>
+          <td class="td-num td-ot">${otIdr > 0 ? 'Rp '+fmtFull(otIdr) : '-'}</td>
+          <td class="td-num td-ins">${insIdr > 0 ? 'Rp '+fmtFull(insIdr) : '-'}</td>
+          <td class="td-num td-total">Rp ${fmtFull(grand)}</td>
+          <td class="hide-mobile">${badge}</td>
+          <td><button class="expand-btn" onclick="event.stopPropagation();toggleDetail('${d.nik}')">${isExp ? '▲' : '▼'}</button></td>
+        </tr>
+        ${detailRow}`;
+    }).join('');
+  }
+
+  // Pagination
+  renderPagination(pages, total);
+}
+
+function renderPagination(pages, total) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="setPage(${state.page-1})" ${state.page===1?'disabled':''}>‹</button>`;
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - state.page) <= 2) {
+      html += `<button class="page-btn ${p===state.page?'active':''}" onclick="setPage(${p})">${p}</button>`;
+    } else if (Math.abs(p - state.page) === 3) {
+      html += `<span class="page-info">…</span>`;
+    }
+  }
+  html += `<button class="page-btn" onclick="setPage(${state.page+1})" ${state.page===pages?'disabled':''}>›</button>`;
+  html += `<span class="page-info">${total} driver</span>`;
+  el.innerHTML = html;
+}
+
+// ── Interactions ──────────────────────────────────────────────────────────────
+function toggleDetail(nik) {
+  if (state.expanded.has(nik)) state.expanded.delete(nik);
+  else state.expanded.add(nik);
+  render();
+}
+
+function setPage(p) {
+  state.page = p;
+  render();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// Site chips
+document.getElementById('siteChips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#siteChips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.site = chip.dataset.site;
+  state.page = 1;
+  render();
+});
+
+// Status chips
+document.getElementById('statusChips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#statusChips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.status = chip.dataset.status;
+  state.page = 1;
+  render();
+});
+
+// Month chips (dynamic)
+function buildMonthChips() {
+  const wrap = document.getElementById('monthChips');
+  wrap.innerHTML = `<div class="chip active" data-month="all">Semua</div>`;
+  MONTHS.forEach(m => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.month = m;
+    chip.textContent = monthShort(m);
+    wrap.appendChild(chip);
+  });
+  wrap.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#monthChips .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.month = chip.dataset.month;
+    state.page = 1;
+    render();
+  });
+}
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  state.search = e.target.value;
+  state.page = 1;
+  render();
+});
+
+// Sort
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (state.sortKey === key) {
+      state.sortDir *= -1;
+    } else {
+      state.sortKey = key;
+      state.sortDir = -1;
+    }
+    document.querySelectorAll('thead th').forEach(t => t.classList.remove('sorted'));
+    th.classList.add('sorted');
+    th.querySelector('.sort-icon').textContent = state.sortDir === -1 ? '↓' : '↑';
+    state.page = 1;
+    render();
+  });
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildMonthChips();
+render();
+</script>
+</body>
+</html>
