@@ -132,6 +132,10 @@ def extract_ot(wb_ot):
 
     headers = all_rows[0]
     print(f'  {len(headers)} kolom, {len(all_rows)-1} baris data')
+    # Debug: print semua header yang mengandung kata kunci
+    key_headers = [(i, repr(h)) for i, h in enumerate(headers) 
+                   if any(k in str(h) for k in ['Employee', 'Month', 'Location', ' BU', 'OT (', 'Hour Paid', 'Site Cat'])]
+    print(f'  Key headers found: {key_headers[:15]}')
 
     ci = {
         'nik'      : col_idx(headers, 'Employee ID'),
