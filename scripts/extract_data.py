@@ -19,7 +19,7 @@ from google.oauth2.service_account import Credentials
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-OT_SHEET_TAB = 'Raw Data'
+OT_SHEET_TAB = 'RAW DATA'
 
 # NIK yang difilter (dummy/test accounts)
 DUMMY_NIKS = {'999999', '0', ''}
@@ -131,23 +131,42 @@ def extract_ot(wb_ot):
         return {}
 
     headers = all_rows[0]
-    print(f'  {len(headers)} kolom, {len(all_rows)-1} baris data')
-    # Debug: print semua header yang mengandung kata kunci
-    key_headers = [(i, repr(h)) for i, h in enumerate(headers) 
-                   if any(k in str(h) for k in ['Employee', 'Month', 'Location', ' BU', 'OT (', 'Hour Paid', 'Site Cat'])]
-    print(f'  Key headers found: {key_headers[:15]}')
+    total_cols = len(headers)
+    print(f'  {total_cols} kolom, {len(all_rows)-1} baris data')
+
+    # Header berulang — cari dari KANAN untuk kolom summary, dari KIRI untuk identifier
+    def col_first(name):
+        for i, h in enumerate(headers):
+            if str(h).strip().lower() == name.strip().lower():
+                return i
+        return -1
+
+    def col_last(name):
+        for i in range(len(headers)-1, -1, -1):
+            if str(headers[i]).strip().lower() == name.strip().lower():
+                return i
+        return -1
+
+    def col_contains_last(keyword):
+        for i in range(len(headers)-1, -1, -1):
+            if keyword.lower() in str(headers[i]).strip().lower():
+                return i
+        return -1
 
     ci = {
-        'nik'      : col_idx(headers, 'Employee ID'),
-        'name'     : col_idx(headers, 'Employee Name'),
-        'month'    : col_idx(headers, 'Total OT Hour/Month'),
-        'hours'    : col_idx(headers, 'Total OT Hour/Total OT Hour Paid'),
-        'idr'      : col_idx(headers, 'Total OT Hour/OT (IDR)'),
-        'location' : col_idx(headers, 'Total OT Hour/Location Name'),
-        'bu'       : col_idx(headers, 'Total OT Hour/BU'),
-        'site_cat' : col_idx(headers, 'Total OT Hour/Site Category'),
+        'nik'      : col_first('Employee ID'),
+        'name'     : col_first('Employee Name'),
+        'month'    : col_last('Month'),
+        'hours'    : col_contains_last('OT Hour Paid'),
+        'idr'      : col_contains_last('OT (IDR)'),
+        'location' : col_last('Location Name'),
+        'bu'       : col_last('BU'),
+        'site_cat' : col_last('Site Category'),
     }
-    print(f'  Column indices: {ci}')
+    # Verifikasi nama header aktual
+    for k, v in ci.items():
+        tag = repr(headers[v]) if v >= 0 else 'NOT FOUND'
+        print(f'  [{k}] col {v} = {tag}')
 
     ot_data = {}
     skipped_dummy = 0
