@@ -72,14 +72,39 @@ INS_SITE_CAT = {
 
 # Site Category override
 SITE_CAT_OVERRIDE = {
+    # HUB — yang salah di Raw Data
     'DC BALI - DENPASAR'            : 'HUB',
     'DC HANKAM RAYA'                : 'HUB',
     'DC BALIKPAPAN'                 : 'HUB',
+    'DC ALAM SUTERA'                : 'HUB',
+    'DC HUB YOGYAKARTA'             : 'HUB',
+    'DC HUB SEMARANG'               : 'HUB',
+    'DC HUB LP BANJARMASIN'         : 'HUB',
+    'DC HUB CIKARANG GLC 7'         : 'HUB',
+    'KENDARI -DC HUB KENDARI'       : 'HUB',
+    'DC HUB TASIKMALAYA'            : 'HUB',
+    'DC HUB RYACUDU LAMPUNG'        : 'HUB',
+    'DC HUB DUMAI - BUKIT DATUK'    : 'HUB',
+    'DC HUB PEKANBARU'              : 'HUB',
+    'DC HUB BANYUWANGI'             : 'HUB',
+    'DC HUB JEMBER'                 : 'HUB',
+    'DC HUB SINGKAWANG'             : 'HUB',
+    'DC HUB SUDIRMAN - PURWOKERTO'  : 'HUB',
+    'DC GARUT'                      : 'HUB',
+    'DC PEMATANG SIANTAR'           : 'HUB',
+    'DC TEGAL'                      : 'HUB',
+    'DC DAMAR PADANG'               : 'HUB',
+    'DC BADUNG - BALI'              : 'HUB',
+    'DC HUB JAMBI'                  : 'HUB',
+    'DC HUB PALANGKARAYA'           : 'HUB',
+    'DC HUB BENGKULU'               : 'HUB',
+    # RDC
     'DC TALLO MAKASSAR'             : 'RDC',
     'DC TALLO MAKASSAR (AHI)'       : 'RDC',
     'DC TANJUNG MORAWA MEDAN'       : 'RDC',
     'DC TANJUNG MORAWA MEDAN (KLS)' : 'RDC',
     'DC TANJUNG MORAWA (AHI)'       : 'RDC',
+    # Lainnya
     'DC CIKANDE'                    : 'Lainnya',
     'DC CIKANDE 2'                  : 'Lainnya',
     'DC CIKANDE - SERANG KM 41'     : 'Lainnya',
@@ -140,9 +165,13 @@ def get_display_site(location):
 def get_site_cat(location, raw_site_cat):
     """Site category dengan override"""
     loc_upper = str(location).strip().upper()
+    # Cek explicit override dulu
     for key, cat in SITE_CAT_OVERRIDE.items():
         if key.upper() in loc_upper:
             return cat
+    # Rule: nama mengandung HUB tapi bukan NDC/RDC → paksa HUB
+    if 'HUB' in loc_upper and raw_site_cat not in ('NDC', 'RDC'):
+        return 'HUB'
     return raw_site_cat if raw_site_cat else 'Lainnya'
 
 # ── Extract Insentif ──────────────────────────────────────────────────────────
