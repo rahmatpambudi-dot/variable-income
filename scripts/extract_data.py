@@ -33,10 +33,42 @@ MONTH_ID = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov'
 
 # Mapping Location Name → display site (hardcode)
 LOCATION_TO_SITE = [
-    (['JABABEKA'],                  'Jababeka'),
-    (['CIKUPA'],                    'Cikupa'),
+    (['JABABEKA'],                       'Jababeka'),
+    (['CIKUPA'],                         'Cikupa'),
     (['SIDOARJO', 'SURABAYA', 'JUANDA'], 'Sidoarjo'),
 ]
+
+# Mapping insentif tab → display site (fallback untuk ins only)
+INS_SITE_DISPLAY = {
+    'JBBK'          : 'Jababeka',
+    'CKP'           : 'Cikupa',
+    'SDA'           : 'Sidoarjo',
+    'Hub Bogor'     : 'Hub Bogor',
+    'Hub Tangerang' : 'Hub Tangerang',
+    'Hub Utara'     : 'Hub Utara',
+    'Hub Bandung'   : 'Hub Bandung',
+    'Hub Yogya'     : 'Hub Yogya',
+    'Hub Semarang'  : 'Hub Semarang',
+    'Hub Lampung'   : 'Hub Lampung',
+    'Hub Palembang' : 'Hub Palembang',
+    'Hub Kediri'    : 'Hub Kediri',
+}
+
+# Site category untuk insentif-only drivers
+INS_SITE_CAT = {
+    'JBBK'          : 'NDC',
+    'CKP'           : 'NDC',
+    'SDA'           : 'NDC',
+    'Hub Bogor'     : 'HUB',
+    'Hub Tangerang' : 'HUB',
+    'Hub Utara'     : 'HUB',
+    'Hub Bandung'   : 'HUB',
+    'Hub Yogya'     : 'HUB',
+    'Hub Semarang'  : 'HUB',
+    'Hub Lampung'   : 'HUB',
+    'Hub Palembang' : 'HUB',
+    'Hub Kediri'    : 'HUB',
+}
 
 # Site Category override
 SITE_CAT_OVERRIDE = {
@@ -154,7 +186,7 @@ def extract_insentif(wb_ins):
                     continue
 
                 if nik not in nik_to_ins:
-                    nik_to_ins[nik] = {'name': name, 'months': defaultdict(float)}
+                    nik_to_ins[nik] = {'name': name, 'ins_site': site, 'months': defaultdict(float)}
 
                 # Akumulasi — handle perbantuan (NIK di multiple tab)
                 nik_to_ins[nik]['months'][month] += ins
@@ -259,10 +291,12 @@ def build_driver_data(nik_to_ins, ot, months):
             location = o['location']
             bu       = o['bu']
         else:
+            # Ins only — pakai mapping dari tab insentif
+            ins_tab  = ins['ins_site'] if ins else ''
             name     = ins['name'] if ins else nik
-            site     = '-'
-            site_cat = ''
-            location = ''
+            site     = INS_SITE_DISPLAY.get(ins_tab, ins_tab or '-')
+            site_cat = INS_SITE_CAT.get(ins_tab, 'HUB')
+            location = site
             bu       = ''
 
         monthly = {}
