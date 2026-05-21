@@ -230,6 +230,9 @@ def extract_insentif(wb_ins):
             print(f'  [ERROR] {site}: {e}')
 
     print(f'  Total insentif NIKs: {len(nik_to_ins)}')
+    # Sample NIK format dari insentif
+    sample = list(nik_to_ins.keys())[:5]
+    print(f'  Sample NIK insentif: {sample}')
     return nik_to_ins
 
 # ── Extract OT ────────────────────────────────────────────────────────────────
@@ -291,6 +294,9 @@ def extract_ot(wb_ot):
         ot[nik]['months'][month]['idr']   += idr
 
     print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
+    # Sample NIK format dari OT
+    sample = list(ot.keys())[:5]
+    print(f'  Sample NIK OT: {sample}')
     return ot
 
 # ── Detect Months ─────────────────────────────────────────────────────────────
