@@ -110,6 +110,28 @@ SITE_CAT_OVERRIDE = {
     'DC CIKANDE - SERANG KM 41'     : 'Lainnya',
 }
 
+# OT Classification
+OT_CATEGORIES = [
+    ('Holiday'  , {'paid_type': ['HOLIDAY']}),
+    ('Langsiran', {'keywords': ['LANGSIRAN']}),
+    ('Project'  , {'keywords': ['PROJECT', 'ARMADA']}),
+    ('Corporate', {'keywords': ['PARKIR', 'CORPORATE']}),
+    ('Delivery' , {'keywords': ['STORE', ' ST ', 'RACKING', 'BELOK']}),
+    ('Lainnya'  , {}),  # catch-all
+]
+
+def classify_ot(paid_type, description):
+    pt = str(paid_type).strip().upper()
+    desc = str(description).strip().upper()
+    for cat, rules in OT_CATEGORIES:
+        if 'paid_type' in rules:
+            if any(p in pt for p in rules['paid_type']):
+                return cat
+        if 'keywords' in rules:
+            if any(k in desc for k in rules['keywords']):
+                return cat
+    return 'Lainnya'
+
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets.readonly',
     'https://www.googleapis.com/auth/drive.readonly',
@@ -264,14 +286,16 @@ def extract_ot(wb_ot):
     print(f'  {len(headers)} kolom, {len(all_rows)-2} baris data')
 
     ci = {
-        'nik'      : col_first(headers, 'Employee ID'),
-        'name'     : col_first(headers, 'Employee Name'),
-        'month'    : col_last(headers, 'Month'),
-        'hours'    : col_contains_last(headers, 'OT Hour Paid'),
-        'idr'      : col_contains_last(headers, 'OT (IDR)'),
-        'location' : col_last(headers, 'Location Name'),
-        'bu'       : col_last(headers, 'BU'),
-        'site_cat' : col_last(headers, 'Site Category'),
+        'nik'       : col_first(headers, 'Employee ID'),
+        'name'      : col_first(headers, 'Employee Name'),
+        'month'     : col_last(headers, 'Month'),
+        'hours'     : col_contains_last(headers, 'OT Hour Paid'),
+        'idr'       : col_contains_last(headers, 'OT (IDR)'),
+        'location'  : col_last(headers, 'Location Name'),
+        'bu'        : col_last(headers, 'BU'),
+        'site_cat'  : col_last(headers, 'Site Category'),
+        'paid_type' : col_first(headers, 'Paid Type'),
+        'desc'      : col_first(headers, 'Description'),
     }
     print(f'  Column indices: {ci}')
 
@@ -283,17 +307,21 @@ def extract_ot(wb_ot):
 
         nik      = g(ci['nik'])
         name     = g(ci['name'])
-        location = g(ci['location'])
-        bu       = g(ci['bu'])
-        site_cat = g(ci['site_cat'])
-        hours    = to_num(g(ci['hours']))
-        idr      = to_num(g(ci['idr']))
-        month    = normalize_month(g(ci['month']))
+        location  = g(ci['location'])
+        bu        = g(ci['bu'])
+        site_cat  = g(ci['site_cat'])
+        hours     = to_num(g(ci['hours']))
+        idr       = to_num(g(ci['idr']))
+        month     = normalize_month(g(ci['month']))
+        paid_type = g(ci['paid_type'])
+        desc      = g(ci['desc'])
 
         if is_dummy(nik, name) or not nik or not month:
             skipped += 1
             continue
         nik = normalize_nik(nik)
+
+        ot_cat = classify_ot(paid_type, desc)
 
         if nik not in ot:
             ot[nik] = {
@@ -303,10 +331,13 @@ def extract_ot(wb_ot):
                 'site_cat'    : get_site_cat(location, site_cat),
                 'bu'          : bu,
                 'months'      : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
+                'ot_cats'     : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
             }
 
         ot[nik]['months'][month]['hours'] += hours
         ot[nik]['months'][month]['idr']   += idr
+        ot[nik]['ot_cats'][ot_cat]['hours'] += hours
+        ot[nik]['ot_cats'][ot_cat]['idr']   += idr
 
     print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
     print(f'  Sample NIK OT (first 10): {list(ot.keys())[:10]}')
@@ -367,6 +398,16 @@ def build_driver_data(nik_to_ins, ot, months):
             total_ot_idr   += ot_idr
             total_ins      += ins_m
 
+        # OT categories breakdown
+        ot_cats = {}
+        if o and 'ot_cats' in o:
+            for cat, vals in o['ot_cats'].items():
+                ot_cats[cat] = {
+                    'hours': round(vals['hours'], 2),
+                    'idr'  : round(vals['idr']),
+                    'pct'  : round(vals['idr'] / total_ot_idr * 100, 1) if total_ot_idr > 0 else 0,
+                }
+
         drivers.append({
             'nik'           : nik,
             'name'          : name,
@@ -377,6 +418,7 @@ def build_driver_data(nik_to_ins, ot, months):
             'has_ot'        : o is not None,
             'has_ins'       : ins is not None,
             'monthly'       : monthly,
+            'ot_cats'       : ot_cats,
             'total_ot_hours': round(total_ot_hours, 2),
             'total_ot_idr'  : round(total_ot_idr),
             'total_ins'     : round(total_ins),
@@ -391,6 +433,20 @@ def build_driver_data(nik_to_ins, ot, months):
     # Debug: print ins_only drivers NIK + site
     ins_only_list = [(d['nik'], d['name'][:20], d['site']) for d in drivers if not d['has_ot'] and d['has_ins']]
     print(f'  Ins only sample (first 10): {ins_only_list[:10]}')
+
+    # OT Classification summary
+    from collections import defaultdict as _dd
+    cat_totals = _dd(lambda: {'hours':0.0,'idr':0.0})
+    for d in drivers:
+        for cat, vals in d.get('ot_cats',{}).items():
+            cat_totals[cat]['hours'] += vals['hours']
+            cat_totals[cat]['idr']   += vals['idr']
+    total_ot_all = sum(v['idr'] for v in cat_totals.values()) or 1
+    print(f'\n📊 OT Classification:')
+    for cat, vals in sorted(cat_totals.items(), key=lambda x: -x[1]['idr']):
+        pct = vals['idr']/total_ot_all*100
+        print(f'  {cat}: Rp {vals["idr"]:,.0f} ({pct:.1f}%) — {vals["hours"]:.0f} jam')
+
     print(f'\n✅ Total: {len(drivers)} drivers (Both:{both}, OT only:{ot_only}, Ins only:{ins_only})')
     # Debug per site
     from collections import Counter
