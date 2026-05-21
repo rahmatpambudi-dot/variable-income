@@ -331,13 +331,16 @@ def extract_ot(wb_ot):
                 'site_cat'    : get_site_cat(location, site_cat),
                 'bu'          : bu,
                 'months'      : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
-                'ot_cats'     : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
+                'ot_cats_total': defaultdict(lambda: {'hours':0.0,'idr':0.0}),
+                'ot_cats_monthly': defaultdict(lambda: defaultdict(lambda: {'hours':0.0,'idr':0.0})),
             }
 
         ot[nik]['months'][month]['hours'] += hours
         ot[nik]['months'][month]['idr']   += idr
-        ot[nik]['ot_cats'][ot_cat]['hours'] += hours
-        ot[nik]['ot_cats'][ot_cat]['idr']   += idr
+        ot[nik]['ot_cats_total'][ot_cat]['hours'] += hours
+        ot[nik]['ot_cats_total'][ot_cat]['idr']   += idr
+        ot[nik]['ot_cats_monthly'][month][ot_cat]['hours'] += hours
+        ot[nik]['ot_cats_monthly'][month][ot_cat]['idr']   += idr
 
     print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
     print(f'  Sample NIK OT (first 10): {list(ot.keys())[:10]}')
@@ -398,15 +401,26 @@ def build_driver_data(nik_to_ins, ot, months):
             total_ot_idr   += ot_idr
             total_ins      += ins_m
 
-        # OT categories breakdown
+        # OT categories breakdown (total + per month)
         ot_cats = {}
-        if o and 'ot_cats' in o:
-            for cat, vals in o['ot_cats'].items():
+        ot_cats_monthly = {}
+        if o and 'ot_cats_total' in o:
+            for cat, vals in o['ot_cats_total'].items():
                 ot_cats[cat] = {
                     'hours': round(vals['hours'], 2),
                     'idr'  : round(vals['idr']),
                     'pct'  : round(vals['idr'] / total_ot_idr * 100, 1) if total_ot_idr > 0 else 0,
                 }
+        if o and 'ot_cats_monthly' in o:
+            for month_key, cats in o['ot_cats_monthly'].items():
+                ot_cats_monthly[month_key] = {}
+                month_ot = sum(v['idr'] for v in cats.values()) or 1
+                for cat, vals in cats.items():
+                    ot_cats_monthly[month_key][cat] = {
+                        'hours': round(vals['hours'], 2),
+                        'idr'  : round(vals['idr']),
+                        'pct'  : round(vals['idr'] / month_ot * 100, 1),
+                    }
 
         drivers.append({
             'nik'           : nik,
@@ -418,7 +432,8 @@ def build_driver_data(nik_to_ins, ot, months):
             'has_ot'        : o is not None,
             'has_ins'       : ins is not None,
             'monthly'       : monthly,
-            'ot_cats'       : ot_cats,
+            'ot_cats'         : ot_cats,
+            'ot_cats_monthly' : ot_cats_monthly,
             'total_ot_hours': round(total_ot_hours, 2),
             'total_ot_idr'  : round(total_ot_idr),
             'total_ins'     : round(total_ins),
