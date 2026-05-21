@@ -230,9 +230,7 @@ def extract_insentif(wb_ins):
             print(f'  [ERROR] {site}: {e}')
 
     print(f'  Total insentif NIKs: {len(nik_to_ins)}')
-    # Sample NIK format dari insentif
-    sample = list(nik_to_ins.keys())[:5]
-    print(f'  Sample NIK insentif: {sample}')
+    print(f'  Sample NIK insentif (first 10): {list(nik_to_ins.keys())[:10]}')
     return nik_to_ins
 
 # ── Extract OT ────────────────────────────────────────────────────────────────
@@ -294,9 +292,7 @@ def extract_ot(wb_ot):
         ot[nik]['months'][month]['idr']   += idr
 
     print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
-    # Sample NIK format dari OT
-    sample = list(ot.keys())[:5]
-    print(f'  Sample NIK OT: {sample}')
+    print(f'  Sample NIK OT (first 10): {list(ot.keys())[:10]}')
     return ot
 
 # ── Detect Months ─────────────────────────────────────────────────────────────
@@ -375,6 +371,9 @@ def build_driver_data(nik_to_ins, ot, months):
     both     = sum(1 for d in drivers if d['has_ot'] and d['has_ins'])
     ot_only  = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
     ins_only = sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
+    # Debug: print ins_only drivers NIK + site
+    ins_only_list = [(d['nik'], d['name'][:20], d['site']) for d in drivers if not d['has_ot'] and d['has_ins']]
+    print(f'  Ins only sample (first 10): {ins_only_list[:10]}')
     print(f'\n✅ Total: {len(drivers)} drivers (Both:{both}, OT only:{ot_only}, Ins only:{ins_only})')
     # Debug per site
     from collections import Counter
