@@ -201,33 +201,41 @@ def extract_insentif(wb_ins):
                 continue
 
             headers = all_rows[0]
-            c_nik   = col_first(headers, 'NIK1')
-            c_name  = col_first(headers, 'driver')
+            c_nik1  = col_first(headers, 'NIK1')
+            c_name1 = col_first(headers, 'driver')
+            c_nik2  = col_first(headers, 'nik2')
+            c_name2 = col_first(headers, 'kenek1')
             c_month = col_first(headers, 'Month Rev')
             c_ins   = col_first(headers, 'Insentif per MPP')
 
-            if c_nik < 0:
+            if c_nik1 < 0:
                 print(f'  [WARN] {site}: NIK1 tidak ditemukan')
                 continue
 
             count = 0
             for row in all_rows[1:]:
                 def g(c): return row[c].strip() if 0<=c<len(row) else ''
-                nik   = g(c_nik)
-                name  = g(c_name)
                 month = normalize_month(g(c_month))
                 ins   = to_num(g(c_ins))
 
-                if is_dummy(nik, name) or not nik or not month or ins <= 0:
+                if not month or ins <= 0:
                     continue
-                nik = normalize_nik(nik)
 
-                if nik not in nik_to_ins:
-                    nik_to_ins[nik] = {'name': name, 'ins_site': site, 'months': defaultdict(float)}
+                # Baca driver (NIK1) DAN kenek (nik2)
+                for c_nik, c_name in [(c_nik1, c_name1), (c_nik2, c_name2)]:
+                    nik  = g(c_nik)
+                    name = g(c_name)
+                    if is_dummy(nik, name) or not nik:
+                        continue
+                    nik = normalize_nik(nik)
+                    if not nik or nik in ('999999', '0'):
+                        continue
 
-                # Akumulasi — handle perbantuan (NIK di multiple tab)
-                nik_to_ins[nik]['months'][month] += ins
-                count += 1
+                    if nik not in nik_to_ins:
+                        nik_to_ins[nik] = {'name': name, 'ins_site': site, 'months': defaultdict(float)}
+
+                    nik_to_ins[nik]['months'][month] += ins
+                    count += 1
 
             print(f'  ✅ {site}: {count} rows')
             if i < len(INSENTIF_SITES)-1: time.sleep(3)
