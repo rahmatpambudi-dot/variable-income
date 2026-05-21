@@ -130,6 +130,13 @@ def to_num(v):
     try: return float(str(v).replace(',','').replace(' ',''))
     except: return 0.0
 
+def normalize_nik(nik):
+    n = str(nik).strip()
+    try:
+        return str(int(n))  # strip leading zeros
+    except:
+        return n.upper()  # keep E-prefix NIKs as-is
+
 def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
     return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
@@ -213,6 +220,7 @@ def extract_insentif(wb_ins):
 
                 if is_dummy(nik, name) or not nik or not month or ins <= 0:
                     continue
+                nik = normalize_nik(nik)
 
                 if nik not in nik_to_ins:
                     nik_to_ins[nik] = {'name': name, 'ins_site': site, 'months': defaultdict(float)}
@@ -277,6 +285,7 @@ def extract_ot(wb_ot):
         if is_dummy(nik, name) or not nik or not month:
             skipped += 1
             continue
+        nik = normalize_nik(nik)
 
         if nik not in ot:
             ot[nik] = {
