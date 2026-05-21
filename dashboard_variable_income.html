@@ -3,1526 +3,1159 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NDC & RDC — Performance Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<title>Dashboard Variable Income 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-:root {
-  --sw: 220px; --bg: #eef2f7; --white: #fff; --border: #dde3ec;
-  --text: #1a1d23; --t2: #5f6368; --t3: #9aa0a6;
-  --green: #1e7e4e; --gbg: #e8f5ee; --gm: #34a85a; --gl: #81c995;
-  --blue: #1a73e8; --bbg: #e8f0fe;
-  --red: #d93025; --rbg: #fce8e6;
-  --orange: #e37400; --obg: #fef3e2;
-  --shadow: 0 1px 3px rgba(0,0,0,.08); --shadow-md: 0 4px 12px rgba(0,0,0,.08);
-  --r: 10px;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:13px;}
-
-/* SIDEBAR */
-.sidebar{width:var(--sw);background:#1e2a3a;border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10;overflow-y:auto;}
-.s-logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;}
-.s-icon{width:32px;height:32px;background:var(--green);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}
-.s-title{font-weight:700;font-size:13px;color:#fff;}.s-sub{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;}
-.s-sec{padding:14px 12px 6px;}
-.s-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin-bottom:4px;}
-.s-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;cursor:pointer;transition:all .15s;color:rgba(255,255,255,.65);font-size:12.5px;}
-.s-item:hover{background:rgba(255,255,255,.07);}
-.s-item.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}
-.s-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-right:6px;}
-.s-dot.ndc{background:#1a73e8;}.s-dot.rdc{background:#e37400;}
-.s-badge{background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
-.s-div{height:1px;background:rgba(255,255,255,.1);margin:6px 12px;}
-.s-group{overflow:hidden;transition:max-height .25s ease;}
-.s-group.collapsed{max-height:0;}
-.s-group.expanded{max-height:400px;}
-.s-item.parent{justify-content:space-between;}
-.s-chevron{font-size:9px;opacity:.5;transition:transform .2s;flex-shrink:0;}
-.s-chevron.open{transform:rotate(180deg);}
-.s-sub-item{display:flex;align-items:center;padding:5px 8px 5px 22px;border-radius:6px;cursor:pointer;transition:all .15s;color:rgba(255,255,255,.5);font-size:12px;}
-.s-sub-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);}
-.s-sub-item.active{background:rgba(255,255,255,.1);color:#fff;font-weight:600;}
-.s-sub-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);flex-shrink:0;margin-right:7px;}
-
-/* MAIN */
-.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
-
-/* TOPBAR */
-.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5;gap:10px;flex-wrap:wrap;}
-.topbar h2{font-size:15px;font-weight:600;}
-.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.btn-tog{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
-.btn-tog button{padding:5px 12px;font-size:12px;font-weight:500;border:none;cursor:pointer;background:var(--white);color:var(--t2);font-family:'Inter',sans-serif;transition:all .15s;}
-.btn-tog button.active{background:var(--green);color:#fff;}
-.ctrl-lbl{font-size:11px;color:var(--t3);}
-.date-in{border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--white);outline:none;cursor:pointer;}
-.date-in:focus{border-color:var(--green);}
-.btn-apply{background:var(--green);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;}
-.btn-apply:hover{background:var(--gm);}
-.s-filter{background:var(--gbg);border:1px solid var(--gl);color:var(--green);border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;outline:none;}
-.upd-info{font-size:11px;color:var(--t3);}
-.upd-info span{color:var(--t2);font-weight:500;}
-.btn-ref{display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:12px;color:var(--t2);cursor:pointer;font-family:'Inter',sans-serif;}
-.btn-ref:hover{background:var(--bg);}
-.btn-ref svg{width:13px;height:13px;}
-
-/* CONTENT */
-.content{padding:20px 24px;flex:1;}
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--t3);}
-.spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;}
-.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);transition:box-shadow .2s;}
-.kpi:hover{box-shadow:var(--shadow-md);}
-.kpi .lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;}
-.kpi .val{font-size:21px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;line-height:1;}
-.kpi .val.green{color:var(--green);}.kpi .val.red{color:var(--red);}.kpi .val.blue{color:var(--blue);}
-.kpi .sub{font-size:10px;color:var(--t3);margin-top:4px;}
-
-/* GRID */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
-.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
-@media(max-width:1200px){.g3{grid-template-columns:1fr 1fr;}.g4{grid-template-columns:1fr 1fr;}}
-@media(max-width:800px){.g2,.g3,.g4{grid-template-columns:1fr;}}
-
-/* PANEL */
-.panel{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
-.ph{padding:13px 16px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.ph h3{font-size:13px;font-weight:600;}
-.ph .tag{font-size:10px;color:var(--t3);background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:10px;}
-.pb{padding:14px 16px;}
-
-/* TABLE */
-.tw{overflow-x:auto;}
-.dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
-.dt thead th{padding:8px 11px;text-align:left;font-weight:600;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--bg);}
-.dt tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums;}
-.dt tbody tr:last-child td{border-bottom:none;}
-.dt tbody tr.sum{background:var(--gbg);font-weight:600;}
-.dt tbody tr.sum td{color:var(--green);border-top:2px solid var(--gl);border-bottom:none;}
-.dt tbody tr:not(.sum):hover td{background:var(--bg);}
-.num{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
-.bg{background:var(--gbg);color:var(--green);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
-.bm{background:var(--obg);color:var(--orange);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
-.br{background:var(--rbg);color:var(--red);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
-
-/* BARS */
-.bars{display:flex;flex-direction:column;gap:9px;}
-.bi .bh{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;}
-.bi .bs{font-weight:500;}.bi .bv{font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11px;}
-.bt{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);}
-.bf{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);}
-.bf.g{background:linear-gradient(90deg,var(--gl),var(--green));}
-.bf.b{background:linear-gradient(90deg,#93c4fd,var(--blue));}
-.bf.o{background:linear-gradient(90deg,#fcd980,var(--orange));}
-
-/* DETAIL METRIK */
-.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
-@media(max-width:900px){.metric-grid{grid-template-columns:1fr;}}
-.trend-table .dt thead th{background:var(--white);}
-.delta-up{color:var(--gm);font-weight:600;font-size:11px;}
-.delta-dn{color:var(--red);font-weight:600;font-size:11px;}
-.delta-nt{color:var(--t3);font-size:11px;}
-
-canvas{display:block;}
-
-/* MONTHLY TREND TABLE */
-.mtt{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;}
-.mtt th{background:var(--bg);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1;}
-.mtt th:first-child,.mtt th:nth-child(2){text-align:left;}
-.mtt td{padding:6px 10px;border-bottom:0.5px solid var(--border);text-align:center;white-space:nowrap;}
-.mtt td:first-child{text-align:left;font-weight:600;color:var(--text);}
-.mtt td:nth-child(2){text-align:left;color:var(--t2);}
-.mtt tr:last-child td{border-bottom:none;}
-.mtt tr.sum-row td{background:var(--bg);font-weight:700;border-top:1px solid var(--border);}
-.mtt .c-red{background:#fce8e6;color:#c0392b;font-weight:600;}
-.mtt .c-yel{background:#fff8e1;color:#b06000;font-weight:600;}
-.mtt .c-grn{background:#e8f5e9;color:#1e7e34;font-weight:600;}
-.mtt .c-def{color:var(--text);}
-.mtt .pct{font-size:9px;opacity:.75;}
-.cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
-.cmp-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;}
-.cmp-ctrl label{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
-.cmp-period{display:flex;align-items:center;gap:6px;}
-.cmp-dot-a{width:8px;height:8px;border-radius:50%;background:#1a73e8;flex-shrink:0;}
-.cmp-dot-b{width:8px;height:8px;border-radius:50%;background:#e37400;flex-shrink:0;}
-.cmp-sep{color:var(--t3);font-size:11px;}
-.btn-cmp{background:var(--green);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
-.btn-cmp:hover{background:var(--gm);}
-
-/* ACHIEVEMENT */
-.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
-.ach-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow);}
-.ach-card .ac-lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
-.ach-card .ac-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1;}
-.ach-card .ac-tgt{font-size:10px;color:var(--t3);margin-top:3px;}
-.ach-card .ac-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;margin-top:5px;letter-spacing:.3px;}
-.ac-badge.hit{background:var(--gbg);color:var(--green);}
-.ac-badge.warn{background:#fff8e6;color:#b06000;}
-.ac-badge.miss{background:var(--rbg);color:var(--red);}
-
-/* DELTA */
-.d-up{color:var(--gm);font-weight:600;font-size:11px;}
-.d-dn{color:var(--red);font-weight:600;font-size:11px;}
-.d-nt{color:var(--t3);font-size:11px;}
-.arrow-up::before{content:'▲ ';}
-.arrow-dn::before{content:'▼ ';}
-
-/* INSIGHT TABLE */
-.ins-tbl{table-layout:fixed;}
-.ins-tbl thead th{background:var(--bg);}
-.ins-tbl .col-a{color:#1a73e8;font-weight:600;}
-.ins-tbl .col-b{color:#e37400;font-weight:600;}
-.ins-tbl .gap-pos{color:var(--gm);font-weight:600;}
-.ins-tbl .gap-neg{color:var(--red);font-weight:600;}
-
-/* KESIMPULAN */
-.kesimpulan{border-radius:var(--r);padding:14px 16px;margin-top:14px;}
-.kesimpulan.baik{background:var(--gbg);border:1px solid var(--gl);}
-.kesimpulan.evaluasi{background:#fff8e6;border:1px solid #f9c825;}
-.kesimpulan h4{font-size:12px;font-weight:700;margin-bottom:8px;}
-.kesimpulan ul{list-style:none;display:flex;flex-direction:column;gap:4px;}
-.kesimpulan ul li{font-size:11px;color:var(--t2);}
-.kesimpulan ul li::before{margin-right:6px;}
-.kesimpulan.baik h4{color:var(--green);}
-.kesimpulan.evaluasi h4{color:#b06000;}
-
-/* TABS */
-.tabs{display:flex;gap:2px;background:var(--bg);border-radius:7px;padding:3px;margin-bottom:16px;width:fit-content;}
-.tab{padding:6px 16px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .15s;}
-.tab.active{background:var(--white);color:var(--green);font-weight:600;box-shadow:var(--shadow);}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif}
+html,body{height:100%;overflow:hidden}
+.app{display:flex;height:100vh;background:#b6c4dc;overflow:hidden}
+.sb{width:220px;min-width:220px;background:#023188;display:flex;flex-direction:column;color:#fff;font-size:12.5px;overflow-y:auto;flex-shrink:0}
+.sb::-webkit-scrollbar{width:4px}.sb::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px}
+.sb-brand{padding:15px 16px 12px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0}
+.sb-logo{display:flex;align-items:center;gap:9px}
+.sb-icon{width:34px;height:34px;background:#1a5fc8;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sb-title{font-size:15px;font-weight:600}
+.sb-sub{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px;margin-top:1px}
+.sb-sec{padding:9px 0 2px}
+.sb-lbl{font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.2px;padding:0 14px 4px;font-weight:500}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;color:rgba(255,255,255,.65);border-left:3px solid transparent;transition:all .15s;user-select:none}
+.sb-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+.sb-item.active{color:#fff;background:#4a6ba6;border-left-color:#5aaff0}
+.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sb-sq{width:8px;height:8px;border-radius:1px;flex-shrink:0}
+.sb-badge{margin-left:auto;background:rgba(255,255,255,.15);color:rgba(255,255,255,.75);font-size:9px;padding:2px 6px;border-radius:8px;font-weight:600}
+.sb-child{display:flex;align-items:center;gap:6px;padding:5px 14px 5px 28px;cursor:pointer;color:rgba(255,255,255,.5);border-left:3px solid transparent;transition:all .15s;font-size:12px;user-select:none}
+.sb-child:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.05)}
+.sb-child.active{color:#fff;background:#3b61a1;border-left-color:#5aaff0}
+.cd{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.3);flex-shrink:0;transition:background .15s;display:inline-block}
+.sb-child.active .cd{background:#5aaff0}
+.sb-site-item{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;color:rgba(255,255,255,.65);border-left:3px solid transparent;transition:all .15s;user-select:none;font-size:12.5px}
+.sb-site-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+.sb-site-item.active{color:#fff;background:#4a6ba6;border-left-color:#5aaff0}
+.sb-site-item .arrow{margin-left:auto;font-size:10px;transition:transform .2s;opacity:.5}
+.sb-site-item.open .arrow{transform:rotate(180deg);opacity:1}
+.sb-bu-list{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.sb-bu-list.open{max-height:200px}
+.sb-bu-item{display:flex;align-items:center;gap:6px;padding:4px 14px 4px 32px;cursor:pointer;color:rgba(255,255,255,.45);border-left:3px solid transparent;transition:all .15s;font-size:11.5px;user-select:none}
+.sb-bu-item:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.05)}
+.sb-bu-item.active{color:#fff;background:#3b61a1;border-left-color:#5aaff0}
+.sb-footer{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-footer a{color:rgba(255,255,255,.4);font-size:10px;text-decoration:none;display:flex;align-items:center;gap:5px}
+.sb-footer a:hover{color:rgba(255,255,255,.7)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{background:#dbe5ee;border-bottom:1px solid #c2d0e5;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;flex-shrink:0}
+.pg-title{font-size:16px;font-weight:700;color:#1a2e45}
+.chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.chip{font-size:11px;padding:4px 9px;border:1px solid #c2d0e5;border-radius:7px;background:#fff;color:#4a5568;white-space:nowrap}
+.chip.site{background:#e4edf8;font-weight:600;color:#023188;border-color:#afc0d8}
+.chip.time{color:#22c55e;border-color:#86efac;background:#f0fdf4;font-weight:600}
+.rbtn{padding:5px 10px;border:1px solid #c2d0e5;border-radius:7px;background:#fff;font-size:12px;color:#4a5568;cursor:pointer}
+.rbtn:hover{background:#e4edf8}
+.content{flex:1;overflow-y:auto;padding:14px 18px}
+.content::-webkit-scrollbar{width:5px}.content::-webkit-scrollbar-thumb{background:#c2d0e5;border-radius:4px}
+.page{display:none}.page.active{display:block}
+.kpi4,.kpi3,.kpi5{display:grid;gap:8px;margin-bottom:13px}
+.kpi5{grid-template-columns:repeat(5,1fr)}
+.kpi4{grid-template-columns:repeat(4,1fr)}
+.kpi3{grid-template-columns:repeat(3,1fr)}
+.kpi{background:#fff;border:1px solid #c2d0e5;border-radius:10px;padding:11px 13px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.k-b::before{background:#023188}.k-g::before{background:#22c55e}.k-a::before{background:#f59c1a}.k-r::before{background:#ef4444}.k-p::before{background:#7c3aed}
+.kpi-lbl{font-size:10px;color:#7a94b0;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.kpi-val{font-size:22px;font-weight:700;color:#1a2e45;line-height:1}
+.kpi-sub{font-size:10px;color:#7a94b0;margin-top:3px}
+.ch2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.ccard{background:#fff;border:1px solid #c2d0e5;border-radius:10px;padding:13px}
+.ctitle{font-size:13px;font-weight:600;color:#1a2e45;margin-bottom:2px}
+.csub{font-size:10.5px;color:#7a94b0;margin-bottom:8px}
+.tcard{background:#fff;border:1px solid #c2d0e5;border-radius:10px;padding:13px;margin-bottom:13px}
+.tc-title{font-size:14px;font-weight:700;color:#1a2e45;margin-bottom:2px}
+.tc-sub{font-size:11px;color:#7a94b0;margin-bottom:9px}
+.cfrow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:9px}
+.cf{padding:4px 11px;border:1px solid #c2d0e5;border-radius:12px;background:#f0f5fb;font-size:11px;color:#4a5568;cursor:pointer;font-weight:500;transition:all .15s}
+.cf:hover{background:#dce8f5}
+.cf.active{background:#023188;color:#fff;border-color:#023188}
+select{padding:4px 9px;border:1px solid #c2d0e5;border-radius:12px;background:#f0f5fb;font-size:11px;color:#4a5568;cursor:pointer}
+.search-input{padding:4px 10px;border:1px solid #c2d0e5;border-radius:12px;background:#fff;font-size:11px;color:#1a2e45;outline:none;width:200px}
+.search-input:focus{border-color:#023188}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:#7a94b0;font-weight:500;text-align:left;padding:7px 9px;border-bottom:1px solid #e4ecf4;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:#023188}
+th.sorted{color:#023188}
+th.r{text-align:right}
+td{padding:8px 9px;color:#1a2e45;border-bottom:1px solid #f2f6fb}
+td.r{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f6f9fd}
+tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
+.bdg-ndc{background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;display:inline-block}
+.bdg-hub{background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;display:inline-block}
+.bdg-ot{background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:500;display:inline-block}
+.bdg-ins{background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:500;display:inline-block}
+.bdg-both{background:#f3e8ff;color:#6d28d9;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:500;display:inline-block}
+.bdg-none{background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:500;display:inline-block}
+.pager{display:flex;align-items:center;justify-content:space-between;margin-top:9px;font-size:11px;color:#7a94b0}
+.pbtns{display:flex;gap:4px;flex-wrap:wrap}
+.pbtn{padding:3px 8px;border:1px solid #c2d0e5;border-radius:5px;background:#fff;cursor:pointer;font-size:11px;color:#4a5568}
+.pbtn:hover{background:#e4edf8}
+.pbtn.on{background:#023188;color:#fff;border-color:#023188}
+.pbtn:disabled{opacity:.4;cursor:default}
+.detail-tr td{background:#f8fafc;padding:0}
+.detail-inner{padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #e4ecf4}
+.mblock{background:#fff;border:1px solid #c2d0e5;border-radius:8px;padding:9px 12px;min-width:130px}
+.mblock-title{font-size:10px;color:#7a94b0;font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.mblock-row{display:flex;justify-content:space-between;gap:14px;font-size:11px;margin-top:3px}
+.mblock-row span:first-child{color:#94a3b8}
+.mval-ot{color:#1d4ed8;font-weight:600}
+.mval-ins{color:#15803d;font-weight:600}
+.mval-tot{color:#6d28d9;font-weight:700;border-top:1px solid #e4ecf4;padding-top:3px;margin-top:3px}
+.expand-btn{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px}
+.expand-btn:hover{background:#e4edf8;color:#023188}
+.site-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:13px}
 </style>
 </head>
 <body>
-<style>
-  #connectone-back {
-    position: fixed;
-    bottom: 16px;
-    left: 16px;
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #1e2d4a;
-    color: #fff;
-    text-decoration: none;
-    font-family: Inter, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: background 0.2s, transform 0.2s;
-  }
-  #connectone-back:hover { background: #2a3f6a; transform: translateX(-2px); }
-  #connectone-back svg { width: 14px; height: 14px; flex-shrink: 0; }
-</style>
-<a id="connectone-back" href="https://rahmatpambudi-dot.github.io/connectone/" title="Kembali ke ConnectOne Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> ConnectOne</a>
+<div class="app">
 
-
-<aside class="sidebar">
-  <div class="s-logo">
-    <div class="s-icon">NR</div>
-    <div><div class="s-title">NDC & RDC</div><div class="s-sub">Performance</div></div>
-  </div>
-  <div class="s-sec">
-    <div class="s-lbl">Menu</div>
-    <div class="s-item active" id="nav-overview" onclick="setNav('overview')">📊 Overview</div>
-    <div class="s-item" id="nav-detail" onclick="setNav('detail')">📋 Detail Metrik</div>
-  </div>
-  <div class="s-div"></div>
-  <div class="s-sec">
-    <div class="s-lbl">Filter Site</div>
-    <div class="s-item" id="site-ALL" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
-  </div>
-  <div class="s-sec">
-    <div class="s-lbl">NDC</div>
-
-    <!-- Jababeka -->
-    <div class="s-item parent" id="site-JABABEKA" onclick="handleSiteClick('JABABEKA','grp-jab',event)">
-      <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Jababeka</span>
-      <span class="s-chevron" id="chv-grp-jab">▼</span>
-    </div>
-    <div class="s-group collapsed" id="grp-jab">
-      <div class="s-sub-item" id="site-JAB_HCI" onclick="setSite('JAB_HCI')"><span class="s-sub-dot"></span>HCI</div>
-      <div class="s-sub-item" id="site-JAB_AHI" onclick="setSite('JAB_AHI')"><span class="s-sub-dot"></span>AHI</div>
-      <div class="s-sub-item" id="site-JAB_FBI" onclick="setSite('JAB_FBI')"><span class="s-sub-dot"></span>FBI</div>
-      <div class="s-sub-item" id="site-JAB_KLS" onclick="setSite('JAB_KLS')"><span class="s-sub-dot"></span>KLS</div>
-    </div>
-
-    <!-- Cikupa -->
-    <div class="s-item" id="site-CIKUPA" onclick="setSite('CIKUPA')"><span class="s-dot ndc"></span>Cikupa</div>
-
-    <!-- Sidoarjo -->
-    <div class="s-item parent" id="site-SDA" onclick="handleSiteClick('SDA','grp-sda',event)">
-      <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Sidoarjo</span>
-      <span class="s-chevron" id="chv-grp-sda">▼</span>
-    </div>
-    <div class="s-group collapsed" id="grp-sda">
-      <div class="s-sub-item" id="site-SDA_HCI" onclick="setSite('SDA_HCI')"><span class="s-sub-dot"></span>HCI</div>
-      <div class="s-sub-item" id="site-SDA_AHI" onclick="setSite('SDA_AHI')"><span class="s-sub-dot"></span>AHI</div>
-      <div class="s-sub-item" id="site-SDA_FBI" onclick="setSite('SDA_FBI')"><span class="s-sub-dot"></span>FBI</div>
+<nav class="sb" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <div class="sb-icon">VI</div>
+      <div><div class="sb-title">Variable Income</div><div class="sb-sub">OT & Insentif 2026</div></div>
     </div>
   </div>
-
-  <div class="s-sec">
-    <div class="s-lbl">RDC</div>
-    <div class="s-item" id="site-TALLO" onclick="setSite('TALLO')"><span class="s-dot rdc"></span>Tallo</div>
-    <div class="s-item" id="site-TAMORA" onclick="setSite('TAMORA')"><span class="s-dot rdc"></span>Tamora</div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Menu</div>
+    <div class="sb-item active" onclick="nav('overview',this)"><span class="sb-dot" style="background:#5aaff0"></span>Overview</div>
+    <div class="sb-item" onclick="nav('driver',this)"><span class="sb-dot" style="background:#4ade80"></span>Daftar Driver</div>
+    <div class="sb-item" onclick="nav('chart',this)"><span class="sb-dot" style="background:#f59c1a"></span>Grafik</div>
+    <div class="sb-item" onclick="nav('insight',this)"><span class="sb-dot" style="background:#f43f5e"></span>Insight</div>
   </div>
-</aside>
+  <div class="sb-sec">
+    <div class="sb-lbl">Sites</div>
+    <div class="sb-item" id="sb-all" onclick="setSite('all',this)"><span class="sb-sq" style="background:#5aaff0"></span>Semua Site<span class="sb-badge" id="sb-all-count">-</span></div>
+  </div>
+  <div id="sb-dynamic-sites"></div>
+  <div class="sb-footer">
+    <a href="https://rahmatpambudi-dot.github.io/connectone/">◈ ConnectOne Hub</a>
+  </div>
+</nav>
 
 <div class="main">
   <div class="topbar">
-    <h2 id="topTitle">Overview</h2>
-    <div class="topbar-right">
-      <span class="ctrl-lbl">Periode:</span>
-      <input type="date" class="date-in" id="startDate" value="2026-04-01">
-      <span class="ctrl-lbl">—</span>
-      <input type="date" class="date-in" id="endDate" value="2026-04-30">
-      <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
-      <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
-        <option value="ALL">Semua Site</option>
-        <option value="JABABEKA">Jababeka (Corporate)</option>
-        <option value="JAB_HCI">Jababeka — HCI</option>
-        <option value="JAB_AHI">Jababeka — AHI</option>
-        <option value="JAB_FBI">Jababeka — FBI</option>
-        <option value="JAB_KLS">Jababeka — KLS</option>
-        <option value="CIKUPA">Cikupa</option>
-        <option value="SDA">Sidoarjo (Corporate)</option>
-        <option value="SDA_HCI">Sidoarjo — HCI</option>
-        <option value="SDA_AHI">Sidoarjo — AHI</option>
-        <option value="SDA_FBI">Sidoarjo — FBI</option>
-        <option value="TALLO">Tallo</option>
-        <option value="TAMORA">Tamora</option>
+    <div class="pg-title" id="pgTitle">Overview</div>
+    <div class="chips">
+      <select id="monthSel" onchange="renderAll()">
+        <option value="all">Semua Bulan</option>
       </select>
-      <div class="upd-info">Update: <span id="updTime">14 May 2026 18:30 WIB</span></div>
-      <button class="btn-ref" onclick="loadData()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-        Refresh
-      </button>
+      <select id="siteSel" onchange="setSiteFromSelect()">
+        <option value="all">Semua Site</option>
+      </select>
+      <div class="chip time" id="clkChip">--:--</div>
+      <div class="chip" id="updChip">Update: -</div>
+      <button class="rbtn" onclick="renderAll()">↻ Refresh</button>
     </div>
   </div>
-  <div class="content" id="content">
-    <div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>
+
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div id="pg-overview" class="page active">
+      <div class="kpi5" id="kpi-ov"></div>
+      <div class="site-grid" id="site-cards"></div>
+      <div class="ch2">
+        <div class="ccard">
+          <div class="ctitle">OT vs Insentif per Bulan</div>
+          <div class="csub">Total IDR</div>
+          <canvas id="chartMonthly" height="180"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle">Top 10 Site — Grand Total</div>
+          <div class="csub">OT + Insentif</div>
+          <canvas id="chartSite" height="180"></canvas>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="tc-title">Top 10 Driver</div>
+        <div class="tc-sub">Grand Total tertinggi (OT + Insentif)</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:32px">#</th>
+              <th>Nama</th>
+              <th>Site</th>
+              <th class="r">Jam OT</th>
+              <th class="r">OT (IDR)</th>
+              <th class="r">Insentif</th>
+              <th class="r">Grand Total</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="top10Body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRIVER LIST -->
+    <div id="pg-driver" class="page">
+      <div class="tcard">
+        <div class="tc-title">Daftar Driver</div>
+        <div class="tc-sub" id="driverCount">-</div>
+        <!-- Row 1: Site Category + BU -->
+        <div class="cfrow">
+          <div class="cf active" data-scat="all" onclick="setDF('site_cat','all',this)">Semua</div>
+          <div class="cf" data-scat="NDC" onclick="setDF('site_cat','NDC',this)">NDC</div>
+          <div class="cf" data-scat="HUB" onclick="setDF('site_cat','HUB',this)">Hub</div>
+          <div class="cf" data-scat="RDC" onclick="setDF('site_cat','RDC',this)">RDC</div>
+          <div class="cf" data-scat="SDC" onclick="setDF('site_cat','SDC',this)">Satellite</div>
+          <div class="cf" data-scat="Lainnya" onclick="setDF('site_cat','Lainnya',this)">Lainnya</div>
+          <div style="width:1px;background:#c2d0e5;margin:0 3px;align-self:stretch"></div>
+          <span style="font-size:11px;color:#7a94b0;align-self:center">BU:</span>
+          <div class="cf active" data-bu="all" onclick="setDF('bu','all',this)">Semua</div>
+          <div id="cf-bu-btns"></div>
+        </div>
+        <!-- Row 2: Status + Search -->
+        <div class="cfrow">
+          <div class="cf active" data-sf2="all" onclick="setDF('status','all',this)">Semua Status</div>
+          <div class="cf" data-sf2="both" onclick="setDF('status','both',this)">OT+Ins</div>
+          <div class="cf" data-sf2="ot" onclick="setDF('status','ot',this)">OT Only</div>
+          <div class="cf" data-sf2="ins" onclick="setDF('status','ins',this)">Ins Only</div>
+          <div style="margin-left:auto">
+            <input class="search-input" type="text" id="driverSearch" placeholder="🔍 Cari nama / NIK..." oninput="renderDriverTable()">
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:32px">#</th>
+              <th onclick="sortDriver('name')">Nama ↕</th>
+              <th onclick="sortDriver('site')">Site ↕</th>
+              <th onclick="sortDriver('bu')">BU ↕</th>
+              <th onclick="sortDriver('total_ot_hours')" class="r">Jam OT ↕</th>
+              <th onclick="sortDriver('total_ot_idr')" class="r">OT (IDR) ↕</th>
+              <th onclick="sortDriver('total_ins')" class="r">Insentif ↕</th>
+              <th onclick="sortDriver('grand_total')" class="r sorted">Grand Total ↓</th>
+              <th>Status</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="driverBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="driverPager"></div>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div id="pg-chart" class="page">
+      <div class="ch2">
+        <div class="ccard">
+          <div class="ctitle">OT per Bulan per Site</div>
+          <div class="csub">Top 5 site berdasarkan total OT</div>
+          <canvas id="chartOTTrend" height="200"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle">Insentif per Bulan</div>
+          <div class="csub">JBBK / CKP / SDA</div>
+          <canvas id="chartInsTrend" height="200"></canvas>
+        </div>
+      </div>
+      <div class="ch2">
+        <div class="ccard">
+          <div class="ctitle">Jam OT per Bulan</div>
+          <div class="csub">Top 5 site</div>
+          <canvas id="chartHours" height="200"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle">Jumlah Driver Aktif per Bulan</div>
+          <div class="csub">Top 5 site</div>
+          <canvas id="chartDriverCount" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+  <!-- INSIGHT PAGE -->
+  <div id="pg-insight" class="page">
+
+    <!-- KPI row -->
+    <div class="kpi4" id="ins-kpi"></div>
+
+    <!-- OT Composition + Top drivers -->
+    <div class="ch2" style="margin-bottom:13px">
+      <div class="ccard">
+        <div class="ctitle">Komposisi OT per Kategori</div>
+        <div class="csub">% kontribusi terhadap total OT IDR</div>
+        <canvas id="chartOTCat" height="220"></canvas>
+      </div>
+      <div class="ccard">
+        <div class="ctitle">OT vs Insentif per Site</div>
+        <div class="csub">% komposisi variable income</div>
+        <canvas id="chartOTInsComp" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Normal distribution -->
+    <div class="ch2" style="margin-bottom:13px">
+      <div class="ccard">
+        <div class="ctitle">Distribusi Grand Total per Driver</div>
+        <div class="csub">Kurva distribusi — OT + Insentif</div>
+        <canvas id="chartNormalDist" height="200"></canvas>
+      </div>
+      <div class="ccard">
+        <div class="ctitle">Ratio OT vs Insentif per Site</div>
+        <div class="csub">Perbandingan nilai OT dan Insentif</div>
+        <canvas id="chartRatio" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Top drivers table -->
+    <div class="tcard">
+      <div class="tc-title">Top Driver — OT + Insentif Tertinggi</div>
+      <div class="tc-sub">Ranking driver berdasarkan grand total variable income</div>
+      <div class="cfrow">
+        <div class="cf active" data-ins-site="all" onclick="setInsightFilter('all',this)">Semua Site</div>
+        <div id="cf-insight-sites"></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:32px">#</th>
+            <th>Nama</th>
+            <th>Site</th>
+            <th>BU</th>
+            <th class="r">OT (IDR)</th>
+            <th class="r">Insentif</th>
+            <th class="r">Grand Total</th>
+            <th>Kategori OT</th>
+          </tr></thead>
+          <tbody id="insightTopBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- OT Category breakdown table -->
+    <div class="tcard">
+      <div class="tc-title">Breakdown Kategori OT</div>
+      <div class="tc-sub" id="ins-cat-sub">Klasifikasi aktivitas OT berdasarkan deskripsi</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Kategori</th>
+            <th class="r">Total IDR</th>
+            <th class="r">% OT</th>
+            <th class="r">Jam</th>
+            <th class="r">Avg IDR/Jam</th>
+            <th class="r">Driver</th>
+          </tr></thead>
+          <tbody id="insightCatBody"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
+
+  </div>
+</div>
 </div>
 
 <script>
-// ── STATE ──────────────────────────────────────────────────────
-let ROWS = [];
-let currentNav  = 'overview';
-let currentSite = 'ALL';
-let charts = {};
-const SL = {
-  JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
-  JAB_HCI:'JAB - HCI', JAB_AHI:'JAB - AHI', JAB_FBI:'JAB - FBI', JAB_KLS:'JAB - KLS',
-  SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
-};
-const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const MONTHS=["January","February","March","April"];
+const DRIVERS=[];
 
-// Sub-site config: base site + owner filter
-// owners: array of owner values to include (case-insensitive match on r.owner)
-// For JAB sub-sites: also filter r.site === 'JABABEKA'
-// For SDA sub-sites: also filter r.site === 'SDA'
-const SUB_SITES = {
-  JAB_HCI: { baseSite:'JABABEKA', owners:['HCI'] },
-  JAB_AHI: { baseSite:'JABABEKA', owners:['AHI','NKA','TGI'] },
-  JAB_FBI: { baseSite:'JABABEKA', owners:['FBI'] },
-  JAB_KLS: { baseSite:'JABABEKA', owners:['KLS'] },
-  SDA_HCI: { baseSite:'SDA',      owners:['HCI'] },
-  SDA_AHI: { baseSite:'SDA',      owners:['AHI','TGI'] },
-  SDA_FBI: { baseSite:'SDA',      owners:['FBI'] },
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const S={
+  site:'all', month:'all',
+  dSiteCat:'all', dBU:'all', dStatus:'all',
+  dSort:'grand_total', dDir:-1,
+  dPage:1, perPage:25,
+  expanded:new Set()
 };
 
-// ── TARGETS ────────────────────────────────────────────────────
-const TARGETS = {
-  olf:      { label:'OLF', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
-  ritase:   { label:'Ritase',        targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
-  dpMix:    { label:'DP Mix',        target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  dpReg:    { label:'DP Reg',    target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  doTrip:   { label:'DO/Trip',       target: 11.0,  dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
-};
-// Undefined targets - show in table, no badge
-const TARGETS_UNDEF = {
-  dpStore:  { label:'DP Store',       fmt: v=>v!=null?v.toFixed(1):'—' },
-  dpNonReg: { label:'DP Non Reg', fmt: v=>v!=null?v.toFixed(1):'—' },
-  doDp:     { label:'DO/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  cbmDo:    { label:'CBM/DO',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  cbmDp:    { label:'CBM/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  tatDirect:{ label:'TAT Direct',     fmt: v=>tatStr(v) },
-  tatStore: { label:'TAT Store',      fmt: v=>tatStr(v) },
-};
+const MONTH_ID={January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'Mei',June:'Jun',July:'Jul',August:'Agu',September:'Sep',October:'Okt',November:'Nov',December:'Des'};
+const INS_SITES = new Set(['JBBK','CKP','SDA']);
+const PALETTE = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+let charts={};
 
-// ── COMPARISON STATE ───────────────────────────────────────────
-let cmpA = { start:'', end:'' };
-let cmpB = { start:'', end:'' };
-
-// ── LOAD ───────────────────────────────────────────────────────
-// Register datalabels plugin
-if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
-
-// ── BUILD MONTHLY FROM ROWS (fallback if data_monthly.json not available) ──
-function buildMonthlyFromRows(rows) {
-  var result = [];
-  var months = [...new Set(rows.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-  months.forEach(function(mo) {
-    SITES.forEach(function(site) {
-      var moRows = rows.filter(r=>r.site===site&&r.date&&r.date.slice(0,7)===mo);
-      if(!moRows.length) return;
-      var res = computeSite(moRows, site)||{};
-      result.push({site:site, label:SL[site], month:mo,
-        ritase:res.ritase, olf:res.olf, dpStore:res.dpStore, dpMix:res.dpMix,
-        dpNonReg:res.dpNonReg, dpReg:res.dpReg, doTrip:res.doTrip, doDp:res.doDp,
-        cbmDo:res.cbmDo, cbmDp:res.cbmDp, tatDirect:res.tatDirect, tatStore:res.tatStore});
-    });
-  });
-  return result;
+// ── COMPUTED SITES ────────────────────────────────────────────────────────────
+function allSites() {
+  const s = new Set(DRIVERS.map(d=>d.site).filter(Boolean));
+  return [...s].sort();
 }
 
-let MONTHLY = [];
-let RAW_LOADED = false;
-
-async function loadData() {
-  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
-  try {
-    // Try data_monthly.json first (fast), fallback to data.json
-    let usedMonthly = false;
-    try {
-      const mRes = await fetch('data_monthly.json?t=' + Date.now());
-      if(mRes.ok) {
-        const mJson = await mRes.json();
-        MONTHLY = mJson.monthly || [];
-        document.getElementById('updTime').textContent = mJson.timestamp || '14 May 2026 18:30 WIB';
-        usedMonthly = true;
-      }
-    } catch(e2) {}
-
-    // Always load data.json for full filter support
-    const res = await fetch('data.json?t=' + Date.now());
-    if (!res.ok) throw new Error('data.json not found. Pastikan GitHub Actions sudah dijalankan.');
-    const json = await res.json();
-    ROWS = json.rows || [];
-    RAW_LOADED = true;
-    if(!usedMonthly) {
-      document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 18:30 WIB';
-      // Build MONTHLY from ROWS on the fly
-      MONTHLY = buildMonthlyFromRows(ROWS);
-    } else {
-      document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
-    }
-    render();
-  } catch(e) {
-    document.getElementById('content').innerHTML = '<div class="loading"><p style="color:var(--red)">⚠ '+e.message+'</p></div>';
-  }
+function siteColor(site, idx) {
+  if (site==='JBBK') return '#3b82f6';
+  if (site==='CKP')  return '#22c55e';
+  if (site==='SDA')  return '#8b5cf6';
+  return PALETTE[idx % PALETTE.length];
 }
 
-// ── DATE HELPERS ───────────────────────────────────────────────
-function getRange() {
-  const s = document.getElementById('startDate').value;
-  const e = document.getElementById('endDate').value;
-  return { start: s, end: e };
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const fmt = n => {
+  if(n>=1e9) return (n/1e9).toFixed(1)+'M';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'jt';
+  if(n>=1e3) return (n/1e3).toFixed(0)+'rb';
+  return n+'';
+};
+const fmtFull = n => (n||0).toLocaleString('id-ID');
+const fmtH = h => h>0 ? h.toFixed(1)+' jam' : '-';
+const ms = m => MONTH_ID[m]||m;
+
+function dval(d,key) {
+  if(S.month==='all') return d[key]||0;
+  const mv=d.monthly&&d.monthly[S.month];
+  if(!mv) return 0;
+  if(key==='total_ot_idr') return mv.ot_idr||0;
+  if(key==='total_ins') return mv.insentif||0;
+  if(key==='grand_total') return mv.total||0;
+  if(key==='total_ot_hours') return mv.ot_hours||0;
+  return 0;
 }
 
-function filterRows(rows, start, end, site) {
-  const sub = SUB_SITES[site];
-  return rows.filter(r => {
-    if (!r.date) return false;
-    if (r.date < start || r.date > end) return false;
-    if (sub) {
-      // Sub-site: filter by base site + owner
-      if (r.site !== sub.baseSite) return false;
-      return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
-    }
-    if (site !== 'ALL') {
-      if (site === 'JABABEKA') return r.site === 'JABABEKA';
-      return r.site === site;
-    }
+function filteredAll() {
+  return DRIVERS.filter(d=>{
+    if(S.site!=='all'&&d.site!==S.site) return false;
+    if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
     return true;
   });
 }
 
-// ── COMPUTE ────────────────────────────────────────────────────
-function avg(a) { a=a.filter(x=>x!=null&&!isNaN(x)); return a.length?a.reduce((s,x)=>s+x,0)/a.length:null; }
-function ssum(a){ return a.filter(x=>x!=null&&!isNaN(x)).reduce((s,x)=>s+x,0); }
-function pf(v,d=2){ return v==null?'—':v.toFixed(d); }
-function pp(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
-function parseTAT(s){
-  if(!s||s==='—')return null;
-  s=s.toString().trim();
-  // H:MM:SS or H:MM
-  const m=s.match(/^(-?\d+):(\d{2})(?::(\d{2}))?$/);
-  if(m) return +m[1]+parseInt(m[2])/60+(m[3]?parseInt(m[3]):0)/3600;
-  // Excel fraction (0-2 = 0-48 hours)
-  const n=parseFloat(s); if(!isNaN(n)&&n>0&&n<2)return n*24;
-  return null;
-}
-function tatStr(h){
-  if(h==null||isNaN(h))return'—';
-  const t=Math.round(Math.abs(h)*3600);
-  return `${Math.floor(t/3600)}:${String(Math.floor(t%3600/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
-}
-
-function computeSite(rows, site) {
-  // If sub-site: resolve to base site for formula logic, rows already pre-filtered by owner
-  const sub = SUB_SITES[site];
-  const effectiveSite = sub ? sub.baseSite : site;
-
-  const isJAB = effectiveSite === 'JABABEKA';
-  const isCIK = effectiveSite === 'CIKUPA';
-  const isSDA = effectiveSite === 'SDA';
-  const isSub = !!sub; // sub-site = owner-specific view, no FBI exclusion
-
-  // site rows (rows already filtered by filterRows, so just use effectiveSite for internal sub-filters)
-  const sr = rows.filter(r => r.site === effectiveSite);
-
-  // RITASE
-  const ritRows = sr.filter(r =>
-    r.td !== 'satelite' &&
-    !(isCIK && (r.ja || '').toUpperCase() === 'MIN VAN OPS')
-  );
-  const byDate = {};
-  ritRows.forEach(r => {
-    if(!byDate[r.date]) byDate[r.date]={trips:new Set(),nopols:new Set()};
-    byDate[r.date].trips.add(r.lc);
-    if(r.nopol) byDate[r.date].nopols.add(r.nopol);
-  });
-  const ritVals = Object.values(byDate).map(v=>{
-    return v.nopols.size>0 ? v.trips.size/v.nopols.size : null;
-  }).filter(x=>x!=null);
-
-  // For JABABEKA: exclude KLS sheet for all metrics except RITASE
-  const srMain = isJAB ? sr.filter(r => r.sheet !== 'KLS JABABEKA') : sr;
-
-  // OLF
-  const olfR = srMain.filter(r => {
-    if(r.td !== 'store') return false;
-    if(!isSub && isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
-    if(isJAB && r.kat !== 'REGULAR') return false;
-    if(isCIK && !(r.od||'').includes('non cikande')) return false;
-    if(!isSub && isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
-    if(isSub && isSDA && r.kat !== 'REGULAR') return false;
-    // TALLO/TAMORA: no kat filter (per manual formula)
+function filteredDriver() {
+  return DRIVERS.filter(d=>{
+    if(S.site!=='all'&&d.site!==S.site) return false;
+    if(S.site==='all'&&S.dSiteCat!=='all'&&d.site_cat!==S.dSiteCat) return false;
+    if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
+    if(S.dStatus==='both'&&!(d.has_ot&&d.has_ins)) return false;
+    if(S.dStatus==='ot'&&!(d.has_ot&&!d.has_ins)) return false;
+    if(S.dStatus==='ins'&&!(!d.has_ot&&d.has_ins)) return false;
+    const q=(document.getElementById('driverSearch')?.value||'').toLowerCase();
+    if(q&&!d.name.toLowerCase().includes(q)&&!d.nik.toLowerCase().includes(q)) return false;
     return true;
+  }).sort((a,b)=>{
+    const k=S.dSort;
+    let va=k==='name'?a.name:k==='site'?a.site:k==='bu'?a.bu:dval(a,k);
+    let vb=k==='name'?b.name:k==='site'?b.site:k==='bu'?b.bu:dval(b,k);
+    if(typeof va==='string') return S.dDir*va.localeCompare(vb);
+    return S.dDir*(va-vb);
   });
-  const oL = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
-  const oM = ssum(olfR.map(r=>parseFloat(r.cap)||0));
-
-  // DP Store
-  const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
-
-  // DP Mix
-  const dpMx = srMain.filter(r => r.td==='customer' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
-
-  // DP Non Reg
-  const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
-
-  // Direct filter
-  const drR = srMain.filter(r => {
-    if(r.td !== 'customer') return false;
-    if(r.ta === 'PICKUP') return false;
-    if(r.kat !== 'REGULAR') return false;
-    if(!isSub && isJAB && r.owner === 'FBI') return false;
-    if(!isSub && isSDA && r.owner === 'FBI') return false;
-    if(isCIK && !(r.sat||'').includes('NON SATELIT')) return false;
-    return true;
-  });
-  const dpRg = drR.map(r=>parseFloat(r.dp)||0);
-  const doTr = drR.map(r=>parseFloat(r.do)||0);
-  const doDpK = ssum(drR.map(r=>parseFloat(r.do)||0));
-  const doDpN = ssum(drR.map(r=>parseFloat(r.dp)||0));
-  const cbmTotal = ssum(drR.map(r=>parseFloat(r.cbm)||0));
-
-  // TAT Direct
-  const tatD = srMain.filter(r => {
-    if(r.td !== 'customer' || r.kat !== 'REGULAR') return false;
-    if(isCIK) return (r.sat||'').includes('NON SATELIT');
-    return r.sa.includes('DALAM KOTA');
-  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
-
-  // TAT Store
-  const tatS = srMain.filter(r => {
-    if(r.td !== 'store' || r.kat !== 'REGULAR') return false;
-    if(isCIK) return (r.sat||'').includes('NON SATELIT');
-    return r.sa.includes('DALAM KOTA');
-  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
-
-  // Total CBM Store (same filter as OLF)
-  const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
-
-  // Total DO Customer & Total DP Customer (same filter as drR)
-  const totalDoCust = ssum(drR.map(r=>parseFloat(r.do)||0));
-  const totalDpCust = ssum(drR.map(r=>parseFloat(r.dp)||0));
-
-  return {
-    site, label: SL[site]||site,
-    ritase: avg(ritVals), olf: oM>0?oL/oM:null,
-    dpStore: avg(dpSt), dpMix: avg(dpMx), dpNonReg: avg(dpNR), dpReg: avg(dpRg),
-    doTrip: avg(doTr), doDp: doDpN>0?doDpK/doDpN:null,
-    cbmDo: doDpK>0?cbmTotal/doDpK:null,
-    cbmDp: doDpN>0?cbmTotal/doDpN:null,
-    tatDirect: avg(tatD), tatStore: avg(tatS),
-    totalCbmStore, totalDoCust, totalDpCust,
-    rowCount: sr.length,
-  };
 }
 
-function computeAll(rows) {
-  return SITES.map(s => computeSite(rows, s)).filter(Boolean);
+function statusBadge(d) {
+  if(d.has_ot&&d.has_ins) return '<span class="bdg-both">OT+Ins</span>';
+  if(d.has_ot) return '<span class="bdg-ot">OT Only</span>';
+  if(d.has_ins) return '<span class="bdg-ins">Ins Only</span>';
+  return '<span class="bdg-none">-</span>';
 }
 
-function makeSummary(results) {
-  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
-  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
-  return {
-    site:'NDC & RDC', label:'NDC & RDC',
-    ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
-    ...Object.fromEntries(sumKeys.map(k=>[k,ssum(results.map(r=>r[k]||0))])),
-  };
+function siteBadge(site) {
+  if(!site) return '-';
+  const color = INS_SITES.has(site)?'#dbeafe':'#f0f5fb';
+  const tcolor = INS_SITES.has(site)?'#1d4ed8':'#4a5568';
+  return `<span style="background:${color};color:${tcolor};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;display:inline-block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${site}</span>`;
 }
 
-// ── RENDER ─────────────────────────────────────────────────────
-function applyFilter() { render(); }
-function onSiteChange() { currentSite = document.getElementById('siteSelect').value; updateSidebarActive(); render(); }
-
-function handleSiteClick(site, grpId, e) {
-  // Toggle expand/collapse
-  const grp = document.getElementById(grpId);
-  const chv = document.getElementById('chv-'+grpId);
-  if(grp) {
-    const isExpanded = grp.classList.contains('expanded');
-    grp.classList.toggle('expanded', !isExpanded);
-    grp.classList.toggle('collapsed', isExpanded);
-    if(chv) chv.classList.toggle('open', !isExpanded);
-  }
-  // Also set site to corporate
-  setSite(site);
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+function tick(){
+  const n=new Date();
+  document.getElementById('clkChip').textContent=
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
 }
+setInterval(tick,1000); tick();
 
-function setSite(s) {
-  currentSite = s;
-  document.getElementById('siteSelect').value = s;
-  // Expand parent group if sub-site selected
-  if(SUB_SITES[s]) {
-    const baseSite = SUB_SITES[s].baseSite;
-    const grpId = baseSite === 'JABABEKA' ? 'grp-jab' : 'grp-sda';
-    const grp = document.getElementById(grpId);
-    const chv = document.getElementById('chv-'+grpId);
-    if(grp) { grp.classList.add('expanded'); grp.classList.remove('collapsed'); }
-    if(chv) chv.classList.add('open');
-  }
-  updateSidebarActive();
-  render();
-}
-
-function updateSidebarActive() {
-  // Clear all active states
-  document.querySelectorAll('.s-item, .s-sub-item').forEach(el => el.classList.remove('active'));
-  // Set active on matching site item
-  const el = document.getElementById('site-'+currentSite);
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function nav(page,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-'+page).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   if(el) el.classList.add('active');
-}
-function setNav(n) {
-  currentNav = n;
-  document.querySelectorAll('.s-item[id^=nav]').forEach(el=>el.classList.remove('active'));
-  document.getElementById('nav-'+n)?.classList.add('active');
-  render();
+  document.getElementById('pgTitle').textContent={overview:'Overview',driver:'Daftar Driver',chart:'Grafik'}[page]||page;
+  if(page==='chart') renderCharts();
 }
 
-function render() {
-  const {start,end} = getRange();
-  const filtered = filterRows(ROWS, start, end, currentSite);
-  const isSub = !!SUB_SITES[currentSite];
-  const results = currentSite === 'ALL' ? computeAll(filtered) : [computeSite(filtered, currentSite)];
-  const summary = makeSummary(results);
-
-  const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-  const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}`;
-
-  Object.values(charts).forEach(c=>{ try{c.destroy()}catch(e){} });
-  charts = {};
-
-  if(currentNav === 'overview') renderOverview(results, summary, start, end);
-  else renderDetail(results, summary, start, end);
+function setSite(site,el){
+  S.site=site; S.dBU='all';
+  if(site==='all'){ S.dSiteCat='all'; }
+  else {
+    const d=DRIVERS.find(d=>d.site===site);
+    S.dSiteCat = d?.site_cat || 'all';
+  }
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  if(el&&el.classList.contains('sb-item')) el.classList.add('active');
+  const ssel=document.getElementById('siteSel');
+  if(ssel) ssel.value=site;
+  document.querySelectorAll('[data-scat]').forEach(e=>e.classList.remove('active'));
+  const chip=document.querySelector(`[data-scat="${S.dSiteCat}"]`);
+  if(chip) chip.classList.add('active');
+  buildBUFilter(S.dSiteCat);
+  S.dPage=1;
+  renderAll();
 }
 
-// ── OVERVIEW ───────────────────────────────────────────────────
-function renderOverview(results, summary, start, end) {
-  const best  = results.reduce((a,b)=>(b.olf||0)>(a.olf||0)?b:a, results[0]||{});
-  const worst = results.reduce((a,b)=>(b.olf??Infinity)<(a.olf??Infinity)?b:a, results[0]||{});
-  const kpis = [
-    {l:'RITASE',      v:pf(summary.ritase),        s:'Avg NDC & RDC', c:''},
-    {l:'OLF STORE',   v:pp(summary.olf),            s:'Avg NDC & RDC', c:'green'},
-    {l:'OLF TERBAIK', v:pp(best.olf),               s:best.label||'—', c:'green'},
-    {l:'OLF RENDAH',  v:pp(worst.olf),              s:worst.label||'—',c:'red'},
-    {l:'DP STORE',    v:pf(summary.dpStore,1),       s:'Avg',           c:'blue'},
-    {l:'DO/TRIP',     v:pf(summary.doTrip,1),        s:'Avg Direct',    c:''},
-    {l:'DO/DP',       v:pf(summary.doDp,2),          s:'Avg Direct',    c:''},
-    {l:'TAT DIRECT',  v:tatStr(summary.tatDirect),   s:'Avg',           c:''},
-    {l:'TAT STORE',   v:tatStr(summary.tatStore),    s:'Avg',           c:'blue'},
-  ];
+function setFilterSiteBU(site, bu, el){
+  // Clear all sidebar active
+  document.querySelectorAll('.sb-site-item,.sb-bu-item,.sb-item').forEach(i=>{
+    if(!i.classList.contains('open')) i.classList.remove('active');
+  });
+  if(el) el.classList.add('active');
 
-  const showRes = currentSite === 'ALL' ? results : results;
+  S.site = site;
+  S.dBU  = bu;
+  const d = DRIVERS.find(d=>d.site===site);
+  S.dSiteCat = d?.site_cat || 'all';
 
-  document.getElementById('content').innerHTML = `
-    <div class="kpi-row">${kpis.map(k=>`<div class="kpi"><div class="lbl">${k.l}</div><div class="val ${k.c}">${k.v}</div><div class="sub">${k.s}</div></div>`).join('')}</div>
-    <div class="g3">
-      <div class="panel"><div class="ph"><h3>OLF Store</h3><span class="tag">% utilitas</span></div><div class="pb"><div class="bars" id="bOLF"></div></div></div>
-      <div class="panel"><div class="ph"><h3>DO / Trip Direct</h3><span class="tag">avg</span></div><div class="pb"><div class="bars" id="bDOT"></div></div></div>
-      <div class="panel"><div class="ph"><h3>Ritase</h3><span class="tag">avg harian</span></div><div class="pb"><div class="bars" id="bRIT"></div></div></div>
-    </div>
-    <div class="g2">
-      <div class="panel"><div class="ph"><h3>Drop Point Comparison</h3><span class="tag">avg / trip</span></div><div class="pb"><canvas id="cDP"></canvas></div></div>
-      <div class="panel"><div class="ph"><h3>TAT Comparison</h3><span class="tag">jam</span></div><div class="pb"><canvas id="cTAT"></canvas></div></div>
-    </div>
-    <div class="panel"><div class="ph"><h3>Tabel Detail Per Site</h3><span class="tag">${results.length} site</span></div>
-      <div class="tw"><table class="dt"><thead><tr>
-        <th>SITE</th><th class="num">RITASE</th><th class="num">OLF STORE</th>
-        <th class="num">DP STORE</th><th class="num">DP MIX</th><th class="num">DP NON REG</th><th class="num">DP REG</th>
-        <th class="num">DO/TRIP</th><th class="num">DO/DP</th><th class="num">TAT DIRECT</th><th class="num">TAT STORE</th>
-      </tr></thead><tbody id="tBody"></tbody></table></div>
-    </div>
+  // Update site dot color
+  document.querySelectorAll('.sb-site-item').forEach(s=>{
+    const dot = s.querySelector('.cd');
+    if(dot) dot.style.background = s.dataset.site===site ? '#5aaff0' : 'rgba(255,255,255,.3)';
+  });
+
+  S.dPage=1;
+  renderAll();
+}
+
+function setSiteFromSelect(){
+  const v=document.getElementById('siteSel').value;
+  setSite(v, null);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function initUI(){
+  // Month selector
+  const msel=document.getElementById('monthSel');
+  msel.innerHTML='<option value="all">Semua Bulan</option>';
+  MONTHS.forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m; o.textContent=ms(m)+' 2026';
+    msel.appendChild(o);
+  });
+
+  // Site selector (topbar)
+  const ssel=document.getElementById('siteSel');
+  ssel.innerHTML='<option value="all">Semua Site</option>';
+  const sites=allSites();
+  sites.forEach(s=>{
+    const o=document.createElement('option');
+    o.value=s; o.textContent=s;
+    ssel.appendChild(o);
+  });
+
+  // Update badge count
+  document.getElementById('sb-all-count').textContent=DRIVERS.length;
+
+  // Build cascading sidebar: Cat → Site → BU
+  // Build structure: { cat: { site: Set(bu) } }
+  const catSiteMap = {};
+  DRIVERS.forEach(d => {
+    if (!d.site || !d.site_cat) return;
+    const cat = d.site_cat;
+    if (!catSiteMap[cat]) catSiteMap[cat] = {};
+    if (!catSiteMap[cat][d.site]) catSiteMap[cat][d.site] = new Set();
+    if (d.bu) catSiteMap[cat][d.site].add(d.bu);
+  });
+
+  const catOrder = ['NDC','HUB','RDC','SDC','Lainnya'];
+  const catLabels = {NDC:'NDC', HUB:'Hub', RDC:'RDC', SDC:'Satellite', Lainnya:'Lainnya'};
+  const sbDynamic = document.getElementById('sb-dynamic-sites');
+
+  catOrder.forEach(cat => {
+    const sitesObj = catSiteMap[cat];
+    if (!sitesObj) return;
+    const sites = Object.keys(sitesObj).sort();
+    if (!sites.length) return;
+
+    // Category section
+    const sec = document.createElement('div');
+    sec.className = 'sb-sec';
+    sec.innerHTML = `<div class="sb-lbl">${catLabels[cat]||cat}</div>`;
+
+    sites.forEach(site => {
+      const bus = [...sitesObj[site]].sort();
+
+      // Site item
+      const siteEl = document.createElement('div');
+      siteEl.className = 'sb-site-item';
+      siteEl.dataset.site = site;
+      const label = site.length > 20 ? site.substring(0,20)+'…' : site;
+      siteEl.innerHTML = `<span class="cd" style="background:rgba(255,255,255,.3)"></span>${label}${bus.length?'<span class="arrow">▼</span>':''}`;
+      siteEl.title = site;
+
+      // BU list
+      const buList = document.createElement('div');
+      buList.className = 'sb-bu-list';
+
+      bus.forEach(bu => {
+        const buEl = document.createElement('div');
+        buEl.className = 'sb-bu-item';
+        buEl.dataset.site = site;
+        buEl.dataset.bu = bu;
+        buEl.innerHTML = `<span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);display:inline-block;flex-shrink:0"></span>${bu}`;
+        buEl.onclick = (e) => {
+          e.stopPropagation();
+          setFilterSiteBU(site, bu, buEl);
+        };
+        buList.appendChild(buEl);
+      });
+
+      // Click site → toggle BU list + filter
+      siteEl.onclick = () => {
+        const isOpen = siteEl.classList.contains('open');
+        // Toggle open
+        siteEl.classList.toggle('open');
+        buList.classList.toggle('open');
+        // Filter by site (all BU)
+        setFilterSiteBU(site, 'all', siteEl);
+      };
+
+      sec.appendChild(siteEl);
+      if (bus.length) sec.appendChild(buList);
+    });
+
+    sbDynamic.appendChild(sec);
+  });
+
+  // Build driver filter site buttons
+  const cfWrap=document.getElementById('cf-site-btns');
+  sites.slice(0,15).forEach(s=>{
+    const el=document.createElement('div');
+    el.className='cf';
+    el.setAttribute('data-sf',s);
+    el.textContent=s.length>10?s.substring(0,10)+'…':s;
+    el.title=s;
+    el.onclick=()=>setDF('site',s,el);
+    cfWrap.appendChild(el);
+  });
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){
+  S.month=document.getElementById('monthSel').value;
+  renderOverview();
+  renderDriverTable();
+  // Re-render insight jika halaman aktif
+  if(document.getElementById('pg-insight').classList.contains('active')){
+    renderInsight();
+  }
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderOverview(){
+  const data=filteredAll();
+  const totOT   =data.reduce((s,d)=>s+dval(d,'total_ot_idr'),0);
+  const totIns  =data.reduce((s,d)=>s+dval(d,'total_ins'),0);
+  const totGrand=data.reduce((s,d)=>s+dval(d,'grand_total'),0);
+  const totHours=data.reduce((s,d)=>s+dval(d,'total_ot_hours'),0);
+  const both    =data.filter(d=>d.has_ot&&d.has_ins).length;
+
+  document.getElementById('kpi-ov').innerHTML=`
+    <div class="kpi k-b"><div class="kpi-lbl">Total Driver</div><div class="kpi-val">${data.length.toLocaleString()}</div><div class="kpi-sub">${both} OT+Insentif</div></div>
+    <div class="kpi k-b"><div class="kpi-lbl">Total OT (IDR)</div><div class="kpi-val">Rp ${fmt(totOT)}</div><div class="kpi-sub">${totHours.toFixed(1)} jam</div></div>
+    <div class="kpi k-g"><div class="kpi-lbl">Total Insentif</div><div class="kpi-val">Rp ${fmt(totIns)}</div><div class="kpi-sub">JBBK · CKP · SDA</div></div>
+    <div class="kpi k-p"><div class="kpi-lbl">Grand Total</div><div class="kpi-val">Rp ${fmt(totGrand)}</div><div class="kpi-sub">OT + Insentif</div></div>
+    <div class="kpi k-a"><div class="kpi-lbl">Rata-rata/Driver</div><div class="kpi-val">Rp ${fmt(data.length?Math.round(totGrand/data.length):0)}</div><div class="kpi-sub">Grand total rata-rata</div></div>
   `;
 
-  renderBars('bOLF', results, r=>r.olf!=null?r.olf*100:null, v=>v!=null?v.toFixed(1)+'%':'—', 'g');
-  renderBars('bDOT', results, r=>r.doTrip, v=>pf(v,1), 'b');
-  renderBars('bRIT', results, r=>r.ritase, v=>pf(v,2), 'o');
+  // Site cards — top sites by grand total
+  const sites=allSites();
+  const siteStats=sites.map((s,i)=>{
+    const sd=data.filter(d=>d.site===s);
+    return {
+      site:s,idx:i,
+      drivers:sd.length,
+      ot:sd.reduce((a,d)=>a+dval(d,'total_ot_idr'),0),
+      ins:sd.reduce((a,d)=>a+dval(d,'total_ins'),0),
+      grand:sd.reduce((a,d)=>a+dval(d,'grand_total'),0),
+      hours:sd.reduce((a,d)=>a+dval(d,'total_ot_hours'),0),
+    };
+  }).sort((a,b)=>b.grand-a.grand);
 
-  const labs = results.map(r=>r.label);
-  const co = {
-    responsive:true,
-    plugins:{
-      legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
-      tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
-      datalabels:{
-        anchor:'end', align:'top', color:'#1a1d23',
-        font:{family:'Inter',size:9,weight:'600'},
-        formatter:(v)=>v!=null?v.toFixed(1):'',
-        padding:2
-      }
-    },
-    scales:{
-      x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
-      y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
-    }
-  };
+  document.getElementById('site-cards').innerHTML=siteStats.slice(0,12).map((ss,i)=>{
+    const c=siteColor(ss.site,i);
+    return `<div class="kpi" style="border-top:3px solid ${c};cursor:pointer" onclick="setSite('${ss.site}',null)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <span style="font-size:12px;font-weight:700;color:#1a2e45;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ss.site}</span>
+        <span style="font-size:10px;color:#7a94b0">${ss.drivers} driver</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+        <div style="background:#f0f5fb;border-radius:5px;padding:5px 6px">
+          <div style="font-size:9px;color:#7a94b0;text-transform:uppercase;margin-bottom:1px">OT</div>
+          <div style="font-size:12px;font-weight:700;color:#1d4ed8">Rp ${fmt(ss.ot)}</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:5px;padding:5px 6px">
+          <div style="font-size:9px;color:#7a94b0;text-transform:uppercase;margin-bottom:1px">Ins</div>
+          <div style="font-size:12px;font-weight:700;color:#15803d">Rp ${fmt(ss.ins)}</div>
+        </div>
+        <div style="background:#faf5ff;border-radius:5px;padding:5px 6px">
+          <div style="font-size:9px;color:#7a94b0;text-transform:uppercase;margin-bottom:1px">Total</div>
+          <div style="font-size:12px;font-weight:700;color:#6d28d9">Rp ${fmt(ss.grand)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
-  charts.dp = new Chart(document.getElementById('cDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'DP Store',data:results.map(r=>r.dpStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
-    {label:'DP Mix',data:results.map(r=>r.dpMix),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
-    {label:'DP Reg',data:results.map(r=>r.dpReg),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
-  ]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
+  renderMonthlyChart(data);
+  renderSiteChart(siteStats);
 
-  charts.tat = new Chart(document.getElementById('cTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'TAT Direct (jam)',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
-    {label:'TAT Store (jam)',data:results.map(r=>r.tatStore!=null?+r.tatStore.toFixed(2):null),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
-  ]},options:co});
-
-  const allRows = [...results, {...summary, isSummary:true}];
-  document.getElementById('tBody').innerHTML = allRows.map(r=>`
-    <tr class="${r.isSummary?'sum':''}">
-      <td><strong>${r.label||r.site}</strong></td>
-      <td class="num">${pf(r.ritase,2)}</td>
-      <td class="num">${olfBadge(r.olf)}</td>
-      <td class="num">${pf(r.dpStore,1)}</td><td class="num">${pf(r.dpMix,1)}</td>
-      <td class="num">${pf(r.dpNonReg,1)}</td><td class="num">${pf(r.dpReg,1)}</td>
-      <td class="num">${pf(r.doTrip,1)}</td><td class="num">${pf(r.doDp,2)}</td>
-      <td class="num">${tatStr(r.tatDirect)}</td><td class="num">${tatStr(r.tatStore)}</td>
+  // Top 10
+  const top10=[...data].sort((a,b)=>dval(b,'grand_total')-dval(a,'grand_total')).slice(0,10);
+  document.getElementById('top10Body').innerHTML=top10.map((d,i)=>`
+    <tr>
+      <td style="color:#94a3b8">${i+1}</td>
+      <td><div style="font-weight:600">${d.name}</div><div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div></td>
+      <td>${siteBadge(d.site)}</td>
+      <td class="r" style="color:#7a94b0">${fmtH(dval(d,'total_ot_hours'))}</td>
+      <td class="r" style="color:#1d4ed8;font-weight:600">${dval(d,'total_ot_idr')>0?'Rp '+fmtFull(dval(d,'total_ot_idr')):'-'}</td>
+      <td class="r" style="color:#15803d;font-weight:600">${dval(d,'total_ins')>0?'Rp '+fmtFull(dval(d,'total_ins')):'-'}</td>
+      <td class="r" style="color:#6d28d9;font-weight:700">Rp ${fmtFull(dval(d,'grand_total'))}</td>
+      <td>${statusBadge(d)}</td>
     </tr>`).join('');
 }
 
-function olfBadge(v) {
-  if(v==null)return'—';
-  const p=v*100;
-  if(p>=90)return`<span class="bg">${p.toFixed(1)}%</span>`;
-  if(p>=80)return`<span class="bm">${p.toFixed(1)}%</span>`;
-  return`<span class="br">${p.toFixed(1)}%</span>`;
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function renderMonthlyChart(data){
+  destroyChart('monthly');
+  const ctx=document.getElementById('chartMonthly');
+  charts['monthly']=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MONTHS.map(ms),datasets:[
+      {label:'OT',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.ot_idr||0),0)),backgroundColor:'#3b82f6'},
+      {label:'Insentif',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.insentif||0),0)),backgroundColor:'#22c55e'},
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+  });
 }
 
-function renderBars(id, results, getFn, fmtFn, cls) {
-  const vals = results.map(r=>getFn(r)||0);
-  const max = Math.max(...vals);
-  document.getElementById(id).innerHTML = results.map((r,i)=>`
-    <div class="bi">
-      <div class="bh"><span class="bs">${r.label}</span><span class="bv">${fmtFn(getFn(r))}</span></div>
-      <div class="bt"><div class="bf ${cls}" style="width:${max>0?(vals[i]/max*100).toFixed(1):0}%"></div></div>
-    </div>`).join('');
+function renderSiteChart(siteStats){
+  destroyChart('site');
+  const top10=siteStats.slice(0,10);
+  charts['site']=new Chart(document.getElementById('chartSite'),{
+    type:'bar',
+    data:{
+      labels:top10.map(s=>s.site.length>15?s.site.substring(0,15)+'…':s.site),
+      datasets:[{label:'Grand Total',data:top10.map(s=>s.grand),backgroundColor:top10.map((s,i)=>siteColor(s.site,i))}]
+    },
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>fmt(v)}}}}
+  });
 }
 
-// ── DETAIL METRIK ──────────────────────────────────────────────
-// ── ACHIEVEMENT HELPERS ────────────────────────────────────────
-function getTarget(key, site) {
-  const t = TARGETS[key];
-  if(!t) return null;
-  // For sub-sites, use parent site's target
-  const effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-  if(t.targetBySite) return t.targetBySite[effectiveSite] || t.targetNational;
-  return t.target;
-}
+function renderCharts(){
+  destroyChart('otTrend');destroyChart('insTrend');destroyChart('hours');destroyChart('dcount');
+  const sites=allSites();
+  // Top 5 by OT
+  const top5=sites.map(s=>({site:s,tot:DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+d.total_ot_idr,0)}))
+    .sort((a,b)=>b.tot-a.tot).slice(0,5).map(s=>s.site);
+  const insSites=['JBBK','CKP','SDA'].filter(s=>sites.includes(s));
 
-function achPct(key, val, site) {
-  const t = TARGETS[key];
-  if(!t || val==null) return null;
-  const tgt = getTarget(key, site);
-  if(!tgt) return null;
-  // For TAT (lower is better): achievement = target/actual * 100
-  // For others (higher is better): achievement = actual/target * 100
-  return t.dir==='up' ? (val/tgt*100) : (tgt/val*100);
-}
-
-function achBadge(key, val, site) {
-  const pct = achPct(key, val, site);
-  if(pct==null) return '';
-  const cls = pct>=100 ? 'hit' : pct>=90 ? 'warn' : 'miss';
-  return `<span class="ac-badge ${cls}">${pct.toFixed(1)}%</span>`;
-}
-
-function fmtDelta(vA, vB, key, higherIsBetter) {
-  if(vA==null||vB==null) return '<span class="d-nt">—</span>';
-  const d = vB - vA;
-  const pct = vA!==0 ? (d/Math.abs(vA)*100) : 0;
-  const up = d > 0;
-  const good = higherIsBetter ? up : !up;
-  const cls = d===0 ? 'd-nt' : (good ? 'd-up arrow-up' : 'd-dn arrow-dn');
-  // for TAT show H:MM diff
-  if(key==='tatDirect'||key==='tatStore') {
-    const sign = d>=0?'+':'-';
-    const abs = Math.abs(d);
-    const h=Math.floor(abs); const m=Math.round((abs-h)*60);
-    return `<span class="${cls}">${sign}${h}:${String(m).padStart(2,'0')}</span>`;
-  }
-  if(key==='olf') return `<span class="${cls}">${d>=0?'+':''}${(d*100).toFixed(1)}%</span>`;
-  return `<span class="${cls}">${d>=0?'+':''}${Math.abs(d)<10?d.toFixed(2):d.toFixed(1)}</span>`;
-}
-
-// Higher is better for all except TAT
-const HIGHER_BETTER = { olf:true, ritase:true, dpStore:true, dpMix:true, dpNonReg:false, dpReg:true, doTrip:true, doDp:true, cbmDo:true, cbmDp:true, tatDirect:false, tatStore:false };
-
-function buildKesimpulan(resA, resB, sumA, sumB) {
-  const lines = { baik:[], perhatian:[] };
-  const checks = [
-    { key:'olf',   label:'OLF Store',    tgt:0.85, dir:'up',   fmtV: v=>(v*100).toFixed(1)+'%', fmtT:'85%' },
-    { key:'ritase',label:'Ritase',       tgtFn:(site)=>getTarget('ritase',site), dir:'up', fmtV:v=>v.toFixed(2) },
-    { key:'dpMix', label:'DP Mix',       tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
-    { key:'dpReg', label:'DP Reg',   tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
-    { key:'doTrip',label:'DO/Trip',      tgt:11.0, dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'11.0' },
-  ];
-
-  // Achievement vs target (period B)
-  const site = currentSite==='ALL' ? null : currentSite;
-  checks.forEach(c => {
-    const val = site ? (resB.find(r=>r.site===site)||{})[c.key] : sumB[c.key];
-    if(val==null) return;
-    const tgt = c.tgtFn ? c.tgtFn(site||'JABABEKA') : c.tgt;
-    const hit = c.dir==='up' ? val>=tgt : val<=tgt;
-    if(hit) lines.baik.push(`${c.label} ${c.fmtV(val)} mencapai target ${c.fmtT||tgt}`);
-    else lines.perhatian.push(`${c.label} ${c.fmtV(val)} belum mencapai target ${c.fmtT||tgt}`);
+  charts['otTrend']=new Chart(document.getElementById('chartOTTrend'),{
+    type:'line',
+    data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
+      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_idr||0),0)),
+      borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
+    }))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}}
   });
 
-  // MoM trend (if comparison data available)
-  if(sumA && sumB) {
-    const olfDelta = sumB.olf!=null&&sumA.olf!=null ? sumB.olf-sumA.olf : null;
-    const tatDDelta = sumB.tatDirect!=null&&sumA.tatDirect!=null ? sumB.tatDirect-sumA.tatDirect : null;
-    const tatSDelta = sumB.tatStore!=null&&sumA.tatStore!=null ? sumB.tatStore-sumA.tatStore : null;
-    const doTDelta = sumB.doTrip!=null&&sumA.doTrip!=null ? sumB.doTrip-sumA.doTrip : null;
-    const ritDelta = sumB.ritase!=null&&sumA.ritase!=null ? sumB.ritase-sumA.ritase : null;
+  charts['insTrend']=new Chart(document.getElementById('chartInsTrend'),{
+    type:'line',
+    data:{labels:MONTHS.map(ms),datasets:insSites.map((s,i)=>({
+      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.insentif||0),0)),
+      borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
+    }))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+  });
 
-    if(olfDelta!=null) {
-      if(olfDelta>0) lines.baik.push(`OLF naik +${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
-      else if(olfDelta<-0.01) lines.perhatian.push(`OLF turun ${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
-    }
-    if(tatDDelta!=null) {
-      const h=Math.floor(Math.abs(tatDDelta)); const m=Math.round((Math.abs(tatDDelta)-h)*60);
-      if(tatDDelta<0) lines.baik.push(`TAT Direct membaik ${h}:${String(m).padStart(2,'0')} jam lebih cepat`);
-      else if(tatDDelta>0.1) lines.perhatian.push(`TAT Direct melambat +${h}:${String(m).padStart(2,'0')} jam`);
-    }
-    if(tatSDelta!=null) {
-      const h=Math.floor(Math.abs(tatSDelta)); const m=Math.round((Math.abs(tatSDelta)-h)*60);
-      if(tatSDelta<0) lines.baik.push(`TAT Store membaik ${h}:${String(m).padStart(2,'0')} jam lebih cepat`);
-      else if(tatSDelta>0.1) lines.perhatian.push(`TAT Store melambat +${h}:${String(m).padStart(2,'0')} jam`);
-    }
-    if(doTDelta!=null) {
-      if(doTDelta>0) lines.baik.push(`DO/Trip naik +${doTDelta.toFixed(1)} (lebih produktif)`);
-      else if(doTDelta<-0.5) lines.perhatian.push(`DO/Trip turun ${doTDelta.toFixed(1)}`);
-    }
-    if(ritDelta!=null) {
-      if(ritDelta>0) lines.baik.push(`Ritase naik +${ritDelta.toFixed(2)} (kepadatan armada membaik)`);
-      else if(ritDelta<-0.02) lines.perhatian.push(`Ritase turun ${ritDelta.toFixed(2)}`);
-    }
-  }
+  charts['hours']=new Chart(document.getElementById('chartHours'),{
+    type:'bar',
+    data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
+      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_hours||0),0)),
+      backgroundColor:PALETTE[i]
+    }))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}
+  });
 
-  const isGood = lines.perhatian.length === 0 || lines.baik.length > lines.perhatian.length;
-  const cls = lines.perhatian.length > lines.baik.length ? 'evaluasi' : 'baik';
-  const title = lines.perhatian.length === 0 ? '✅ Operasional Efisien' : (lines.baik.length >= lines.perhatian.length ? '⚠️ Cukup Baik, Ada yang Perlu Diperhatikan' : '⚠️ Perlu Evaluasi');
-
-  let html = `<div class="kesimpulan ${cls}"><h4>${title}</h4><ul>`;
-  lines.baik.forEach(l => html += `<li>✓ ${l}</li>`);
-  lines.perhatian.forEach(l => html += `<li>⚠ ${l}</li>`);
-  html += '</ul></div>';
-  return html;
+  charts['dcount']=new Chart(document.getElementById('chartDriverCount'),{
+    type:'bar',
+    data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
+      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s&&(d.monthly[m]?.ot_idr||d.monthly[m]?.insentif)).length),
+      backgroundColor:PALETTE[i]
+    }))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}
+  });
 }
 
-function renderComparison() {
-  const s1=cmpA.start, e1=cmpA.end, s2=cmpB.start, e2=cmpB.end;
-  if(!s1||!e1||!s2||!e2) {
-    document.getElementById('cmpResult').innerHTML = '<p style="color:var(--t3);font-size:12px;padding:12px">Pilih kedua periode lalu klik Bandingkan.</p>';
-    return;
-  }
-
-  const rowsA = filterRows(ROWS, s1, e1, currentSite);
-  const rowsB = filterRows(ROWS, s2, e2, currentSite);
-  const resA = currentSite==='ALL' ? computeAll(rowsA) : [computeSite(rowsA, currentSite)];
-  const resB = currentSite==='ALL' ? computeAll(rowsB) : [computeSite(rowsB, currentSite)];
-  const sumA = makeSummary(resA);
-  const sumB = makeSummary(resB);
-
-  const allMetrics = [
-    { key:'olf',      label:'OLF', fmtA:v=>v!=null?(v*100).toFixed(1)+'%':'—', fmtB:v=>v!=null?(v*100).toFixed(1)+'%':'—' },
-    { key:'ritase',   label:'Ritase' },
-    { key:'dpStore',  label:'DP Store' },
-    { key:'dpMix',    label:'DP Mix' },
-    { key:'dpNonReg', label:'DP Non Reg' },
-    { key:'dpReg',    label:'DP Reg' },
-    { key:'doTrip',        label:'DO/Trip' },
-    { key:'doDp',          label:'DO/DP Direct' },
-    { key:'cbmDo',         label:'CBM/DO' },
-    { key:'cbmDp',         label:'CBM/DP' },
-    { key:'tatDirect',     label:'TAT Direct',   isTAT:true },
-    { key:'tatStore',      label:'TAT Store',    isTAT:true },
-    { key:'totalCbmStore', label:'CBM Store' },
-    { key:'totalDoCust',   label:'DO Customer' },
-    { key:'totalDpCust',   label:'DP Customer' },
-  ];
-
-  const fmt = (key, v) => {
-    if(v==null) return '—';
-    if(key==='olf') return (v*100).toFixed(1)+'%';
-    if(key==='tatDirect'||key==='tatStore') return tatStr(v);
-    if(key==='doDp'||key==='cbmDo'||key==='cbmDp') return v.toFixed(2);
-    if(key==='totalDoCust'||key==='totalDpCust') return Math.round(v).toLocaleString('id-ID');
-    if(key==='totalCbmStore') return v.toFixed(1);
-    return v.toFixed(1);
-  };
-
-  // Build table rows using summary (ALL) or single site
-  const vA = currentSite==='ALL' ? sumA : (resA[0]||{});
-  const vB = currentSite==='ALL' ? sumB : (resB[0]||{});
-
-  let tableRows = '';
-  allMetrics.forEach(m => {
-    const a=vA[m.key], b=vB[m.key];
-    const delta = fmtDelta(a, b, m.key, HIGHER_BETTER[m.key]);
-    tableRows += '<tr>'
-      +'<td><strong>'+m.label+'</strong></td>'
-      +'<td class="num col-a">'+fmt(m.key,a)+'</td>'
-      +'<td class="num col-b">'+fmt(m.key,b)+'</td>'
-      +'<td class="num">'+delta+'</td>'
-      +'</tr>';
-  });
-
-  // Per-site rows if ALL — layout: rows=metrik, cols=site with A→B delta
-  let siteSection = '';
-  if(currentSite==='ALL') {
-    // Build per-site grid: 5 site cards, each showing metrik rows
-    let cards = '';
-    SITES.forEach(site => {
-      const a = resA.find(r=>r.site===site)||{};
-      const b = resB.find(r=>r.site===site)||{};
-      let rows = '';
-      allMetrics.forEach(m => {
-        const va = fmt(m.key,a[m.key]), vb = fmt(m.key,b[m.key]);
-        const d = fmtDelta(a[m.key], b[m.key], m.key, HIGHER_BETTER[m.key]);
-        rows += '<tr>'
-          +'<td style="font-size:11px;color:var(--t2);padding:5px 8px;border-bottom:0.5px solid var(--border)">'+m.label+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#1a73e8">'+va+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#e37400">'+vb+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border)">'+d+'</td>'
-          +'</tr>';
-      });
-      cards += '<div style="background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;min-width:0">'
-        +'<div style="background:var(--bg);padding:7px 10px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">'+SL[site]+'</div>'
-        +'<table style="width:100%;border-collapse:collapse"><thead>'
-        +'<tr><th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:left;font-weight:600">Metrik</th>'
-        +'<th style="font-size:9px;color:#1a73e8;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">A</th>'
-        +'<th style="font-size:9px;color:#e37400;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">B</th>'
-        +'<th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">Δ</th>'
-        +'</tr></thead><tbody>'+rows+'</tbody></table>'
-        +'</div>';
-    });
-    siteSection = '<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:2px 0">'+cards+'</div></div>';
-  }
-
-  const labelA = s1+' — '+e1;
-  const labelB = s2+' — '+e2;
-
-  // Site cards html (strip outer panel wrapper from siteSection)
-  var siteCardsHtml = '';
-  if(siteSection) {
-    var tmp = document.createElement('div');
-    tmp.innerHTML = siteSection;
-    var grid = tmp.querySelector('[style*="auto-fill"]');
-    if(grid) siteCardsHtml = grid.innerHTML;
-  }
-
-  // Shorten date labels: "2026-03-31 — 2026-04-29" → "31 Mar — 29 Apr 26"
-  function shortDate(s) {
-    var mn=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-    return s.replace(/(\d{4})-(\d{2})-(\d{2})\s*—\s*(\d{4})-(\d{2})-(\d{2})/,
-      function(_,y1,m1,d1,y2,m2,d2){
-        return d1+' '+mn[+m1-1]+' '+y1.slice(2)+'<br>— '+d2+' '+mn[+m2-1]+' '+y2.slice(2);
-      });
-  }
-  var hdrA = shortDate(labelA);
-  var hdrB = shortDate(labelB);
-
-  // ── Transposed summary table (metric = rows, A/B = cols) ──────
-  // Reuse COLS config from monthly trend table
-  const CMP_COLS = [
-    { key:'ritase',   label:'Ritase',       fmt:function(v){return v!=null?v.toFixed(2):'—';},             tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true,  isTAT:false },
-    { key:'olf',      label:'OLF (Store)',  fmt:function(v){return v!=null?(v*100).toFixed(1)+'%':'—';},    tgt:function(){return 0.85;},  hi:true,  isTAT:false },
-    { key:'dpStore',  label:'DP (Store)',   fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
-    { key:'dpMix',    label:'DP (Mix)',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
-    { key:'dpNonReg', label:'DP Non Reg',  fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
-    { key:'dpReg',    label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
-    { key:'doTrip',        label:'DO/Trip',      fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:function(){return 11.0;},  hi:true,  isTAT:false },
-    { key:'tatDirect',     label:'TAT (Direct)', fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
-    { key:'tatStore',      label:'TAT (Store)',  fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
-    { key:'totalCbmStore', label:'CBM Store',    fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:null, hi:true,  isTAT:false },
-    { key:'totalDoCust',   label:'DO Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
-    { key:'totalDpCust',   label:'DP Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
-  ];
-
-  function cmpCellCls(key, val, site) {
-    var col = CMP_COLS.find(function(c){return c.key===key;});
-    if(!col||!col.tgt||val==null) return '';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : (site==='ALL'?'JABABEKA':site);
-    var t = col.tgt(effectiveSite);
-    if(!t) return '';
-    var pct = col.hi ? val/t : t/val;
-    if(pct>=1.0) return 'c-grn';
-    if(pct>=0.9) return 'c-yel';
-    return 'c-red';
-  }
-
-  function cmpPctStr(key, val, site) {
-    var col = CMP_COLS.find(function(c){return c.key===key;});
-    if(!col||!col.tgt||val==null) return '';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : (site==='ALL'?'JABABEKA':site);
-    var t = col.tgt(effectiveSite);
-    if(!t) return '';
-    var pct = col.hi ? val/t*100 : t/val*100;
-    return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
-  }
-
-  function tatBadge(key, a, b) {
-    // TAT: lower is better. Compare A vs B: if A < B → A improved (green ▼), if A > B → A worse (red ▲)
-    if(a==null||b==null) return '';
-    var diff = a - b; // negative = A lower = better
-    if(Math.abs(diff)<0.01) return '';
-    var better = diff < 0; // A is lower than B = good
-    var mins = Math.round(Math.abs(diff));
-    var h = Math.floor(mins/60), m = mins%60;
-    var label = (h>0?h+'j ':'')+m+'m';
-    var arrow = better ? '▼' : '▲';
-    var color = better ? '#0f9d58' : '#d93025';
-    return ' <span style="font-size:10px;font-weight:700;color:'+color+'">'+arrow+' '+label+'</span>';
-  }
-
-  var site4cls = currentSite==='ALL' ? 'JABABEKA' : currentSite;
-  var cmpRows = '';
-  CMP_COLS.forEach(function(col) {
-    var a = vA[col.key], b = vB[col.key];
-    var clsA = cmpCellCls(col.key, a, site4cls);
-    var clsB = cmpCellCls(col.key, b, site4cls);
-    var pA = cmpPctStr(col.key, a, site4cls);
-    var pB = cmpPctStr(col.key, b, site4cls);
-    var badge = col.isTAT ? tatBadge(col.key, a, b) : '';
-    cmpRows += '<tr>'
-      +'<td style="font-size:11px;color:var(--t2);font-weight:600;padding:7px 10px;border-bottom:0.5px solid var(--border);white-space:nowrap">'+col.label+'</td>'
-      +'<td class="num '+clsA+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(a)+pA+'</td>'
-      +'<td class="num '+clsB+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(b)+pB+badge+'</td>'
-      +'</tr>';
-  });
-
-  var summaryTable = '<table class="dt ins-tbl" style="font-size:11px;min-width:0;width:100%"><thead><tr>'
-    +'<th style="width:130px;text-align:left;padding:7px 10px;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Metrik</th>'
-    +'<th class="num col-a" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrA+'</th>'
-    +'<th class="num col-b" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrB+'</th>'
-    +'</tr></thead><tbody>'+cmpRows+'</tbody></table>';
-
-  var legendTag = '<span class="tag"><span style="color:#1a73e8">■</span> A &nbsp;<span style="color:#e37400">■</span> B</span>';
-
-  var innerHtml = '';
-  if(currentSite==='ALL' && siteCardsHtml) {
-    innerHtml = '<div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">'
-      +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Ringkasan</div>'+summaryTable+'</div>'
-      +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Per Site</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px">'+siteCardsHtml+'</div></div>'
-      +'</div>';
+// ── DRIVER TABLE ──────────────────────────────────────────────────────────────
+function setDF(type,val,el){
+  if(type==='site_cat'){
+    S.dSiteCat=val; S.dBU='all';
+    document.querySelectorAll('[data-scat]').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll(`[data-scat="${val}"]`).forEach(e=>e.classList.add('active'));
+    // Rebuild BU buttons for this category
+    buildBUFilter(val);
+  } else if(type==='bu'){
+    S.dBU=val;
+    document.querySelectorAll('[data-bu]').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll(`[data-bu="${val}"]`).forEach(e=>e.classList.add('active'));
   } else {
-    innerHtml = summaryTable;
+    S.dStatus=val;
+    document.querySelectorAll('[data-sf2]').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll(`[data-sf2="${val}"]`).forEach(e=>e.classList.add('active'));
   }
-
-  document.getElementById('cmpResult').innerHTML =
-    '<div class="panel"><div class="ph"><h3>Perbandingan Periode</h3>'+legendTag+'</div>'
-    +'<div style="padding:0 2px 4px">'+innerHtml+'</div>'
-    +'</div>'
-    +buildKesimpulan(resB, resB, sumA, sumB);
+  S.dPage=1; renderDriverTable();
 }
 
-// ── MONTHLY TREND TABLE ────────────────────────────────────────
-function buildMonthlyTrendTable(container) {
-  if(!container) return;
-  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-
-  // allMonths: semua bulan dari ROWS (Jan → latest), apple-to-apple day range
-  const {start:fs, end:fe} = getRange();
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-
-  // Columns config: key, label, fmt, target(site), higherBetter, showPct
-  const COLS = [
-    { key:'ritase',  label:'Ritase',        fmt:v=>v!=null?v.toFixed(2):'—', tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true  },
-    { key:'olf',     label:'OLF (Store)',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgt:function(){return 0.85;}, hi:true  },
-    { key:'dpStore', label:'DP (Store)',    fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
-    { key:'dpMix',   label:'DP (Mix)',      fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'dpNonReg',label:'DP Non Reg',   fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
-    { key:'dpReg',   label:'DP (Regular)', fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'doTrip',        label:'DO/Trip',      fmt:v=>v!=null?v.toFixed(1):'—',           tgt:function(){return 11.0;}, hi:true  },
-    { key:'tatDirect',     label:'TAT (Direct)', fmt:v=>tatStr(v),                          tgt:null, hi:false },
-    { key:'tatStore',      label:'TAT (Store)',  fmt:v=>tatStr(v),                          tgt:null, hi:false },
-    { key:'totalCbmStore', label:'CBM Store',    fmt:v=>v!=null?v.toFixed(1):'—',           tgt:null, hi:true  },
-    { key:'totalDoCust',   label:'DO Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
-    { key:'totalDpCust',   label:'DP Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
-  ];
-
-  const SITES_LIST = currentSite==='ALL' ? SITES : SUB_SITES[currentSite] ? [currentSite] : [currentSite];
-
-  // Color cell based on achievement vs target
-  function cellCls(key, val, site) {
-    var col = COLS.find(c=>c.key===key);
-    if(!col||!col.tgt||val==null) return 'c-def';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-    var t = col.tgt(effectiveSite);
-    if(!t) return 'c-def';
-    var pct = col.hi ? val/t : t/val;
-    if(pct>=1.0) return 'c-grn';
-    if(pct>=0.9) return 'c-yel';
-    return 'c-red';
-  }
-
-  function pctStr(key, val, site) {
-    var col = COLS.find(c=>c.key===key);
-    if(!col||!col.tgt||val==null) return '';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-    var t = col.tgt(effectiveSite);
-    if(!t) return '';
-    var pct = col.hi ? val/t*100 : t/val*100;
-    return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
-  }
-
-  // Build header
-  var thead = '<tr><th>Bulan</th><th>Site</th>';
-  COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
-  thead += '</tr>';
-
-  // Build rows — compute from ROWS with exact date range (same as Achievement panel)
-  var tbody = '';
-  allMonths.forEach(function(mo) {
-    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
-    SITES_LIST.forEach(function(site) {
-      var moFiltered = filterRows(ROWS, moD1, moD2, site);
-      if(!moFiltered.length) return;
-      var res = computeSite(moFiltered, site)||{};
-      var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
-      var siteLbl = SL[site]||site;
-      var tr = '<tr>';
-      tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+siteLbl+'</td>';
-      COLS.forEach(function(c){
-        var v = res[c.key];
-        var cls = cellCls(c.key, v, site);
-        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, v, site)+'</td>';
-      });
-      tr += '</tr>';
-      tbody += tr;
-    });
+function buildBUFilter(siteCat){
+  const wrap=document.getElementById('cf-bu-btns');
+  wrap.innerHTML='';
+  const bus=new Set(DRIVERS.filter(d=>siteCat==='all'||d.site_cat===siteCat).map(d=>d.bu).filter(Boolean));
+  [...bus].sort().forEach(bu=>{
+    const el=document.createElement('div');
+    el.className='cf'; el.setAttribute('data-bu',bu);
+    el.textContent=bu;
+    el.onclick=()=>setDF('bu',bu,el);
+    wrap.appendChild(el);
   });
-
-  container.innerHTML = '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
 }
 
-function renderDetail(results, summary, start, end) {
-  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  // Compute daily trend data for charts
-  const {start:s, end:e} = getRange();
-  const filtered = filterRows(ROWS, s, e, currentSite);
+function sortDriver(key){
+  if(S.dSort===key) S.dDir*=-1; else{S.dSort=key;S.dDir=-1;}
+  S.dPage=1; renderDriverTable();
+}
 
-  // Build daily aggregates per metric for trend
-  const dailyMap = {};
-  filtered.forEach(r => {
-    if(!dailyMap[r.date]) dailyMap[r.date] = [];
-    dailyMap[r.date].push(r);
-  });
-  const dates = Object.keys(dailyMap).sort();
+function toggleDetail(nik){
+  if(S.expanded.has(nik)) S.expanded.delete(nik); else S.expanded.add(nik);
+  renderDriverTable();
+}
 
-  const metrics = [
-    { key:'olf',      label:'OLF',       fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—' },
-    { key:'ritase',   label:'Ritase',               fmt: v=>pf(v,2) },
-    { key:'dpStore',  label:'DP Store',             fmt: v=>pf(v,1) },
-    { key:'dpMix',    label:'DP Mix',               fmt: v=>pf(v,1) },
-    { key:'dpNonReg', label:'DP Non Reg',       fmt: v=>pf(v,1) },
-    { key:'dpReg',    label:'DP Reg',           fmt: v=>pf(v,1) },
-    { key:'doTrip',   label:'DO/Trip',       fmt: v=>pf(v,1) },
-    { key:'doDp',     label:'DO/DP Direct',         fmt: v=>pf(v,2) },
-    { key:'cbmDo',    label:'CBM/DO',               fmt: v=>pf(v,2) },
-    { key:'cbmDp',    label:'CBM/DP',               fmt: v=>pf(v,2) },
-    { key:'tatDirect',label:'TAT Direct',           fmt: v=>tatStr(v) },
-    { key:'tatStore', label:'TAT Store',            fmt: v=>tatStr(v) },
-  ];
+function renderDriverTable(){
+  const data=filteredDriver();
+  const total=data.length;
+  const pages=Math.ceil(total/S.perPage)||1;
+  if(S.dPage>pages) S.dPage=Math.max(1,pages);
+  const start=(S.dPage-1)*S.perPage;
+  const slice=data.slice(start,start+S.perPage);
 
-  // ── ACHIEVEMENT CARDS ─────────────────────────────────────────
-  const achMetrics = [
-    { key:'olf',    label:'OLF Store',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'Target ≥85%' },
-    { key:'ritase', label:'Ritase',      fmt:v=>v!=null?v.toFixed(2):'—',           tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}` },
-    { key:'dpMix',  label:'DP Mix',      fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
-    { key:'dpReg',  label:'DP Reg',  fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
-    { key:'doTrip', label:'DO/Trip',     fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥11.0' },
-  ];
+  document.getElementById('driverCount').textContent=`${total} driver ditemukan`;
 
-  // For single site use that site result, for ALL use summary
-  const achResults = currentSite==='ALL'
-    ? results.map(r=>({...r, _isSite:true}))
-    : results;
+  document.getElementById('driverBody').innerHTML=slice.length?slice.map((d,i)=>{
+    const rank=start+i+1;
+    const isExp=S.expanded.has(d.nik);
+    const det=isExp?`<tr class="detail-tr"><td colspan="10"><div class="detail-inner">
+      ${MONTHS.map(m=>{
+        const mv=d.monthly[m]||{ot_hours:0,ot_idr:0,insentif:0,total:0};
+        if(!mv.ot_idr&&!mv.insentif) return '';
+        return `<div class="mblock">
+          <div class="mblock-title">${ms(m)} 2026</div>
+          <div class="mblock-row"><span>Jam OT</span><span class="mval-ot">${fmtH(mv.ot_hours)}</span></div>
+          <div class="mblock-row"><span>OT IDR</span><span class="mval-ot">Rp ${fmtFull(mv.ot_idr)}</span></div>
+          <div class="mblock-row"><span>Insentif</span><span class="mval-ins">Rp ${fmtFull(mv.insentif)}</span></div>
+          <div class="mblock-row mval-tot"><span>Total</span><span>Rp ${fmtFull(mv.total)}</span></div>
+        </div>`;
+      }).join('')}
+    </div></td></tr>`:'';
+    return `<tr onclick="toggleDetail('${d.nik}')" style="cursor:pointer">
+      <td style="color:#94a3b8">${rank}</td>
+      <td><div style="font-weight:600;font-size:12px">${d.name}</div><div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div></td>
+      <td style="max-width:130px">${siteBadge(d.site)}</td>
+      <td style="font-size:11px;color:#7a94b0">${d.bu||'-'}</td>
+      <td class="r" style="color:#7a94b0;font-size:11px">${fmtH(dval(d,'total_ot_hours'))}</td>
+      <td class="r" style="color:#1d4ed8;font-weight:600">${dval(d,'total_ot_idr')>0?'Rp '+fmtFull(dval(d,'total_ot_idr')):'-'}</td>
+      <td class="r" style="color:#15803d;font-weight:600">${dval(d,'total_ins')>0?'Rp '+fmtFull(dval(d,'total_ins')):'-'}</td>
+      <td class="r" style="color:#6d28d9;font-weight:700">Rp ${fmtFull(dval(d,'grand_total'))}</td>
+      <td>${statusBadge(d)}</td>
+      <td><button class="expand-btn" onclick="event.stopPropagation();toggleDetail('${d.nik}')">${isExp?'▲':'▼'}</button></td>
+    </tr>${det}`;
+  }).join(''):'<tr><td colspan="10" style="text-align:center;padding:32px;color:#94a3b8">Tidak ada data</td></tr>';
 
-  // Build achievement cards per site or summary
-  const achDisplay = currentSite==='ALL' ? [...results, {...summary, site:'NDC_RDC_AVG', label:'AVG'}] : results;
-
-  let achCards = '';
-  achDisplay.forEach(r => {
-    const site = r.site;
-    achMetrics.forEach(m => {
-      const val = r[m.key];
-      const tgt = typeof m.tgtFmt==='function' ? m.tgtFmt(site) : m.tgtFmt;
-      const badge = achBadge(m.key, val, site);
-      if(currentSite==='ALL' && r.site!=='NDC_RDC_AVG') return; // only show AVG cards when ALL
-      achCards += `<div class="ach-card">
-        <div class="ac-lbl">${m.label}${currentSite!=='ALL'?'':''}</div>
-        <div class="ac-val">${m.fmt(val)}</div>
-        <div class="ac-tgt">${tgt}</div>
-        ${badge}
-      </div>`;
-    });
-  });
-
-  // Per-site achievement if single site
-  let siteAchTable = '';
-  function mkBadge(pct) {
-    if(pct==null) return '';
-    const cls = pct>=100?'hit':pct>=90?'warn':'miss';
-    return '<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';
+  let ph=`<span>${total} driver</span><div class="pbtns">`;
+  ph+=`<button class="pbtn" onclick="setDP(${S.dPage-1})" ${S.dPage===1?'disabled':''}>‹</button>`;
+  for(let p=1;p<=pages;p++){
+    if(p===1||p===pages||Math.abs(p-S.dPage)<=2)
+      ph+=`<button class="pbtn ${p===S.dPage?'on':''}" onclick="setDP(${p})">${p}</button>`;
+    else if(Math.abs(p-S.dPage)===3) ph+=`<span style="padding:0 4px">…</span>`;
   }
-  if(currentSite==='ALL') {
-    let thead = '<tr><th>METRIK</th>';
-    results.forEach(r=>{ thead += '<th class="num">'+r.label+'</th>'; });
-    thead += '<th class="num">AVG</th></tr>';
-    let tbody = '';
-    achMetrics.forEach(m => {
-      let tr = '<tr><td><strong>'+m.label+'</strong></td>';
-      results.forEach(r => {
-        const pct = achPct(m.key, r[m.key], r.site);
-        tr += '<td class="num">'+m.fmt(r[m.key])+' '+mkBadge(pct)+'</td>';
-      });
-      const avgPct = achPct(m.key, summary[m.key], 'NATIONAL');
-      tr += '<td class="num"><strong>'+m.fmt(summary[m.key])+'</strong> '+mkBadge(avgPct)+'</td></tr>';
-      tbody += tr;
-    });
-    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>'
-      +'<div class="tw"><table class="dt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>';
-  } else {
-    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — '+(results[0]?.label||currentSite)+'</h3><span class="tag">vs target</span></div>'
-      +'<div class="ach-grid" style="padding:14px 16px">'+achCards+'</div></div>';
-  }
+  ph+=`<button class="pbtn" onclick="setDP(${S.dPage+1})" ${S.dPage===pages?'disabled':''}>›</button></div>`;
+  document.getElementById('driverPager').innerHTML=ph;
+}
 
-  // ── COMPARISON CONTROLS ────────────────────────────────────────
-  const today = new Date().toISOString().slice(0,10);
-  const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth()-1, 1).toISOString().slice(0,10);
-  const prevMonthEnd   = new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().slice(0,10);
-  if(!cmpA.start) { cmpA.start=prevMonthStart; cmpA.end=prevMonthEnd; }
-  if(!cmpB.start) { const {start:cs,end:ce}=getRange(); cmpB.start=cs; cmpB.end=ce; }
+function setDP(p){S.dPage=p;renderDriverTable();}
 
-  document.getElementById('content').innerHTML = `
-    ${currentSite==='ALL' ? siteAchTable : siteAchTable}
-    <div class="g2" style="margin-bottom:14px">
-      <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
-        <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
-        <tbody>${metrics.map(m=>`
-          <tr><td><strong>${m.label}</strong></td>
-          ${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}
-          <td class="num"><strong>${m.fmt(summary[m.key])}</strong></td>
-          </tr>`).join('')}
-        </tbody></table></div>
-      </div>
-      <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
-    </div>
-    <div class="g2">
-      <div class="panel"><div class="ph"><h3>TAT Direct vs Store</h3><span class="tag">jam rata-rata</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dTAT"></canvas></div></div></div>
-      <div class="panel"><div class="ph"><h3>Drop Point Breakdown</h3><span class="tag">Store / Mix / Reg / Non-Reg</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dDP"></canvas></div></div></div>
-    </div>
-    <div class="panel" style="margin-bottom:14px">
-      <div class="ph"><h3>DO/Trip & DO/DP</h3><span class="tag">efficiency</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dDO"></canvas></div></div>
-    </div>
-    <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
-      <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:700px"><canvas id="dTREND"></canvas></div>
-    </div>
+// ── INSIGHT ───────────────────────────────────────────────────────────────────
+const OT_CAT_COLORS = {
+  'Holiday'  : '#ef4444',
+  'Langsiran': '#3b82f6',
+  'Project'  : '#f59e0b',
+  'Corporate': '#8b5cf6',
+  'Delivery' : '#22c55e',
+  'Lainnya'  : '#94a3b8',
+};
 
-    <!-- MONTHLY TREND TABLE -->
-    <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
-      <div class="tw" id="monthlyTrendTable" style="padding:0 2px 4px"></div>
-    </div>
+let insightSiteFilter = 'all';
 
-    <!-- COMPARISON SECTION -->
-    <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
-      <div style="padding:12px 16px">
-        <div class="cmp-ctrl" style="border:none;padding:0;margin-bottom:12px;background:none">
-          <div class="cmp-period">
-            <span class="cmp-dot-a"></span>
-            <label>Periode A:</label>
-            <input type="date" class="date-in" id="cmpAStart" value="${cmpA.start}">
-            <span class="cmp-sep">—</span>
-            <input type="date" class="date-in" id="cmpAEnd" value="${cmpA.end}">
-          </div>
-          <span style="color:var(--t3);font-size:13px;margin:0 8px">vs</span>
-          <div class="cmp-period">
-            <span class="cmp-dot-b"></span>
-            <label>Periode B:</label>
-            <input type="date" class="date-in" id="cmpBStart" value="${cmpB.start}">
-            <span class="cmp-sep">—</span>
-            <input type="date" class="date-in" id="cmpBEnd" value="${cmpB.end}">
-          </div>
-          <button class="btn-cmp" onclick="applyCmp()">Bandingkan</button>
-        </div>
-        <div id="cmpResult"><p style="color:var(--t3);font-size:12px">Pilih kedua periode lalu klik Bandingkan.</p></div>
-      </div>
-    </div>
+function setInsightFilter(site, el) {
+  insightSiteFilter = site;
+  document.querySelectorAll('[data-ins-site]').forEach(e=>e.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderInsight();
+}
+
+function renderInsight() {
+  // Sinkron dengan filter global (site, bu, bulan)
+  const data = DRIVERS.filter(d=>{
+    if(S.site!=='all'&&d.site!==S.site) return false;
+    if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
+    if(insightSiteFilter!=='all'&&d.site!==insightSiteFilter) return false;
+    return true;
+  });
+
+  // KPI
+  const totOT    = data.reduce((s,d)=>s+dval(d,'total_ot_idr'),0);
+  const totIns   = data.reduce((s,d)=>s+dval(d,'total_ins'),0);
+  const totGrand = data.reduce((s,d)=>s+dval(d,'grand_total'),0);
+  const avgGrand = data.length ? Math.round(totGrand/data.length) : 0;
+  const holidayDrivers = data.filter(d=>d.ot_cats&&d.ot_cats['Holiday']&&d.ot_cats['Holiday'].idr>0).length;
+
+  document.getElementById('ins-kpi').innerHTML = `
+    <div class="kpi k-b"><div class="kpi-lbl">Total OT IDR</div><div class="kpi-val">Rp ${fmt(totOT)}</div><div class="kpi-sub">Variable cost OT</div></div>
+    <div class="kpi k-g"><div class="kpi-lbl">Total Insentif</div><div class="kpi-val">Rp ${fmt(totIns)}</div><div class="kpi-sub">Variable cost insentif</div></div>
+    <div class="kpi k-p"><div class="kpi-lbl">Avg per Driver</div><div class="kpi-val">Rp ${fmt(avgGrand)}</div><div class="kpi-sub">Grand total rata-rata</div></div>
+    <div class="kpi k-r"><div class="kpi-lbl">Holiday OT Driver</div><div class="kpi-val">${holidayDrivers}</div><div class="kpi-sub">Driver dengan holiday OT</div></div>
   `;
 
-  const labs = results.map(r=>r.label);
-  const co = {
-    responsive:true,
-    plugins:{
-      legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
-      tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
-      datalabels:{
-        anchor:'end', align:'top', color:'#1a1d23',
-        font:{family:'Inter',size:9,weight:'600'},
-        formatter:(v)=>v!=null?v.toFixed(1):'',
-        padding:2
-      }
+  // OT Category aggregation
+  const catAgg = {};
+  const catDrivers = {};
+  data.forEach(d => {
+    if(!d.ot_cats) return;
+    Object.entries(d.ot_cats).forEach(([cat,vals])=>{
+      if(!catAgg[cat]) { catAgg[cat]={hours:0,idr:0}; catDrivers[cat]=new Set(); }
+      catAgg[cat].hours += vals.hours||0;
+      catAgg[cat].idr   += vals.idr||0;
+      if(vals.idr>0) catDrivers[cat].add(d.nik);
+    });
+  });
+
+  const totalOTIdr = Object.values(catAgg).reduce((s,v)=>s+v.idr,0)||1;
+
+  // OT Category donut chart
+  destroyChart('otCat');
+  const catOrder = ['Holiday','Langsiran','Project','Corporate','Delivery','Lainnya'];
+  const catLabels = catOrder.filter(c=>catAgg[c]);
+  charts['otCat'] = new Chart(document.getElementById('chartOTCat'),{
+    type:'doughnut',
+    data:{
+      labels: catLabels,
+      datasets:[{
+        data: catLabels.map(c=>catAgg[c]?.idr||0),
+        backgroundColor: catLabels.map(c=>OT_CAT_COLORS[c]||'#94a3b8'),
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
     },
-    scales:{
-      x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
-      y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
-    }
-  };
-
-  charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
-
-  // Build monthly trend table — deferred to not block main render
-  setTimeout(function(){ buildMonthlyTrendTable(document.getElementById('monthlyTrendTable')); }, 50);
-
-  charts.dTAT = new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
-    {label:'TAT Store',data:results.map(r=>r.tatStore!=null?+r.tatStore.toFixed(2):null),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
-  ]},options:co});
-
-  charts.dDP = new Chart(document.getElementById('dDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'DP Store',data:results.map(r=>r.dpStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
-    {label:'DP Mix',data:results.map(r=>r.dpMix),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
-    {label:'DP Reg',data:results.map(r=>r.dpReg),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
-    {label:'DP Non Reg',data:results.map(r=>r.dpNonReg),backgroundColor:'rgba(217,48,37,.4)',borderColor:'#d93025',borderWidth:1,borderRadius:4},
-  ]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
-
-  charts.dDO = new Chart(document.getElementById('dDO').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'DO/Trip',data:results.map(r=>r.doTrip),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
-    {label:'DO/DP',data:results.map(r=>r.doDp),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
-  ]},options:co});
-
-  // ── MONTHLY TRENDLINE ──────────────────────────────────────────
-  const monthMap = {};
-  filtered.forEach(r => {
-    if(!r.date) return;
-    const mo = r.date.slice(0,7);
-    if(!monthMap[mo]) monthMap[mo] = [];
-    monthMap[mo].push(r);
-  });
-  const months = Object.keys(monthMap).sort();
-  const moLabels = months.map(m => {
-    const [y,mn] = m.split('-');
-    return moNames[parseInt(mn)-1] + ' ' + y;
-  });
-  const moData = months.map(mo => {
-    const moRows = monthMap[mo] || [];
-    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
-  });
-
-  function mkTrend(label, color, data, yAxis, fmtFn, valign) {
-    const al = valign||'top';
-    return {
-      label, yAxisID: yAxis,
-      data,
-      borderColor: color, backgroundColor: 'transparent',
-      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: color,
-      pointHoverRadius: 6, tension: 0.3, fill: false,
-      datalabels: {
-        display: function(ctx2){ return ctx2.dataIndex===0||ctx2.dataIndex===trendData.length-1; },
-        anchor: al==='bottom'?'start':'end',
-        align:  al,
-        offset: al==='bottom'?-14:4,
-        color, font:{family:'Inter', size:9, weight:'700'},
-        formatter: v => v!=null ? fmtFn(v) : ''
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'right',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{
+          label: ctx=>{
+            const pct = (ctx.raw/totalOTIdr*100).toFixed(1);
+            return ` ${ctx.label}: Rp ${fmt(ctx.raw)} (${pct}%)`;
+          }
+        }},
+        datalabels: false,
       }
-    };
+    }
+  });
+
+  // OT vs Insentif per site stacked bar
+  destroyChart('otInsComp');
+  const sites = [...new Set(data.map(d=>d.site))].filter(Boolean);
+  const siteOT  = sites.map(s=>data.filter(d=>d.site===s).reduce((a,d)=>a+dval(d,'total_ot_idr'),0));
+  const siteIns = sites.map(s=>data.filter(d=>d.site===s).reduce((a,d)=>a+dval(d,'total_ins'),0));
+  // Sort by total desc, take top 10
+  const siteTotal = sites.map((s,i)=>({s,ot:siteOT[i],ins:siteIns[i],tot:siteOT[i]+siteIns[i]}))
+    .sort((a,b)=>b.tot-a.tot).slice(0,10);
+
+  charts['otInsComp'] = new Chart(document.getElementById('chartOTInsComp'),{
+    type:'bar',
+    data:{
+      labels: siteTotal.map(s=>s.s.length>15?s.s.substring(0,15)+'…':s.s),
+      datasets:[
+        {label:'OT',     data:siteTotal.map(s=>s.ot),  backgroundColor:'#3b82f6'},
+        {label:'Insentif',data:siteTotal.map(s=>s.ins), backgroundColor:'#22c55e'},
+      ]
+    },
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:10}}},
+        tooltip:{callbacks:{
+          label: ctx=>`${ctx.dataset.label}: Rp ${fmt(ctx.raw)}`
+        }}
+      },
+      scales:{
+        x:{stacked:true,ticks:{callback:v=>fmt(v)}},
+        y:{stacked:true}
+      }
+    }
+  });
+
+  // Normal distribution chart
+  renderNormalDist(data);
+
+  // Ratio OT vs Insentif per site
+  destroyChart('ratio');
+  const ratioData = siteTotal.filter(s=>s.ins>0).map(s=>({
+    s:s.s, ratio: Math.round(s.ot/s.ins*100)/100
+  })).sort((a,b)=>b.ratio-a.ratio);
+
+  charts['ratio'] = new Chart(document.getElementById('chartRatio'),{
+    type:'bar',
+    data:{
+      labels: ratioData.map(s=>s.s.length>15?s.s.substring(0,15)+'…':s.s),
+      datasets:[{
+        label:'Ratio OT/Insentif',
+        data: ratioData.map(s=>s.ratio),
+        backgroundColor: ratioData.map(s=>s.ratio>2?'#ef4444':s.ratio>1?'#f59e0b':'#22c55e'),
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>`${ctx.raw}x (OT ${ctx.raw}x dari Insentif)`}},
+      },
+      scales:{
+        x:{ticks:{callback:v=>v+'x'},grid:{color:'#e4ecf4'}},
+        y:{grid:{display:false}}
+      }
+    }
+  });
+
+  // Top drivers table
+  const top50 = [...data].sort((a,b)=>dval(b,'grand_total')-dval(a,'grand_total')).slice(0,50);
+  document.getElementById('insightTopBody').innerHTML = top50.map((d,i)=>{
+    const topCat = d.ot_cats ? Object.entries(d.ot_cats).sort((a,b)=>b[1].idr-a[1].idr)[0] : null;
+    const catBadge = topCat ? `<span style="background:${OT_CAT_COLORS[topCat[0]]||'#94a3b8'}22;color:${OT_CAT_COLORS[topCat[0]]||'#94a3b8'};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600">${topCat[0]} ${topCat[1].pct}%</span>` : '-';
+    return `<tr>
+      <td style="color:#94a3b8">${i+1}</td>
+      <td><div style="font-weight:600;font-size:12px">${d.name}</div><div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div></td>
+      <td>${siteBadge(d.site)}</td>
+      <td style="font-size:11px;color:#7a94b0">${d.bu||'-'}</td>
+      <td class="r" style="color:#1d4ed8;font-weight:600">${dval(d,'total_ot_idr')>0?'Rp '+fmtFull(dval(d,'total_ot_idr')):'-'}</td>
+      <td class="r" style="color:#15803d;font-weight:600">${dval(d,'total_ins')>0?'Rp '+fmtFull(dval(d,'total_ins')):'-'}</td>
+      <td class="r" style="color:#6d28d9;font-weight:700">Rp ${fmtFull(dval(d,'grand_total'))}</td>
+      <td>${catBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // Category breakdown table
+  const catRows = catOrder.filter(c=>catAgg[c]).map(c=>({
+    cat:c,
+    idr:catAgg[c].idr,
+    hours:catAgg[c].hours,
+    pct:(catAgg[c].idr/totalOTIdr*100).toFixed(1),
+    avgPerJam: catAgg[c].hours>0 ? Math.round(catAgg[c].idr/catAgg[c].hours) : 0,
+    drivers: catDrivers[c]?.size||0,
+  })).sort((a,b)=>b.idr-a.idr);
+
+  document.getElementById('insightCatBody').innerHTML = catRows.map(r=>`
+    <tr>
+      <td><span style="display:inline-flex;align-items:center;gap:6px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${OT_CAT_COLORS[r.cat]||'#94a3b8'};display:inline-block"></span>
+        <strong>${r.cat}</strong>
+      </span></td>
+      <td class="r" style="font-weight:600;color:#1d4ed8">Rp ${fmtFull(r.idr)}</td>
+      <td class="r"><span style="background:${OT_CAT_COLORS[r.cat]||'#94a3b8'}22;color:${OT_CAT_COLORS[r.cat]||'#94a3b8'};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${r.pct}%</span></td>
+      <td class="r" style="color:#7a94b0">${r.hours.toFixed(0)} jam</td>
+      <td class="r" style="color:#7a94b0">Rp ${fmtFull(r.avgPerJam)}/jam</td>
+      <td class="r" style="color:#7a94b0">${r.drivers}</td>
+    </tr>
+  `).join('');
+
+  // Build insight site filter chips
+  const cfWrap = document.getElementById('cf-insight-sites');
+  if (cfWrap && !cfWrap.children.length) {
+    const insiteSites = [...new Set(DRIVERS.map(d=>d.site).filter(Boolean))].sort();
+    insiteSites.forEach(s=>{
+      const el=document.createElement('div');
+      el.className='cf';
+      el.setAttribute('data-ins-site',s);
+      el.textContent=s.length>12?s.substring(0,12)+'…':s;
+      el.title=s;
+      el.onclick=()=>setInsightFilter(s,el);
+      cfWrap.appendChild(el);
+    });
   }
+}
 
-  // ── TRENDLINE: all months in data, values computed using filter day-range ──
-  const filterD1 = parseInt(s.slice(8,10));
-  const filterD2 = parseInt(e.slice(8,10));
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-  const moNames2 = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  const trendLabels = allMonths.map(mo => {
-    const [y,mn] = mo.split('-');
-    return moNames2[parseInt(mn)-1] + ' ' + y;
+function renderNormalDist(data) {
+  destroyChart('normalDist');
+  const values = data.map(d=>dval(d,'grand_total')).filter(v=>v>0).sort((a,b)=>a-b);
+  if(!values.length) return;
+
+  const mean = values.reduce((s,v)=>s+v,0)/values.length;
+  const std  = Math.sqrt(values.reduce((s,v)=>s+(v-mean)**2,0)/values.length);
+
+  // Bucket into 20 bins
+  const min=values[0], max=values[values.length-1];
+  const bins=20, binSize=(max-min)/bins;
+  const buckets=Array(bins).fill(0);
+  values.forEach(v=>{
+    const i=Math.min(Math.floor((v-min)/binSize),bins-1);
+    buckets[i]++;
+  });
+  const labels=buckets.map((_,i)=>fmt(min+i*binSize));
+
+  // Normal curve overlay
+  const normalCurve=labels.map((_,i)=>{
+    const x=min+(i+0.5)*binSize;
+    return (values.length*binSize/(std*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*((x-mean)/std)**2);
   });
 
-  // Each month uses same day-range as active filter (apple-to-apple)
-  const trendData = allMonths.map(mo => {
-    const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    const d1 = mo+'-'+String(filterD1).padStart(2,'0');
-    const d2 = mo+'-'+String(Math.min(filterD2, daysInMonth)).padStart(2,'0');
-    const moRows = filterRows(ROWS, d1, d2, currentSite);
-    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
-  });
-
-  const trendSeries = [
-    { key:'olf',    label:'OLF',     color:'#e37400', axis:'yR', align:'top',    offset:6,  fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';} },
-    { key:'doTrip', label:'DO/Trip', color:'#1a73e8', axis:'yL', align:'top',    offset:10, fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'dpReg',  label:'DP Reg',  color:'#d93025', axis:'yL', align:'top',    offset:6,  fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'dpMix',  label:'DP Mix',  color:'#a142f4', axis:'yL', align:'bottom', offset:10, fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'ritase', label:'Ritase',  color:'#555',    axis:'yL', align:'center', offset:0,  fmt:function(v){return v!=null?+v.toFixed(2):null;},        disp:function(v){return v.toFixed(2);}     },
-  ];
-
-  var endLabelPlugin = {
-    id: 'endLabel',
-    afterDatasetsDraw: function(chart) {
-      var ctx=chart.ctx, right=chart.chartArea.right;
-      trendSeries.forEach(function(s,i) {
-        var meta=chart.getDatasetMeta(i);
-        if(meta.hidden) return;
-        // Also skip if dataset was marked hidden (no data)
-        if(trendDatasets[i] && trendDatasets[i].hidden) return;
-        var last=meta.data[meta.data.length-1];
-        if(!last) return;
-        ctx.save();
-        ctx.font='bold 10px Inter,sans-serif';
-        ctx.fillStyle=s.color;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        ctx.fillText(s.label, right+8, last.y);
-        ctx.restore();
-      });
-    }
-  };
-
-  var trendDatasets = trendSeries.map(function(s) {
-    // Check if series has any meaningful data
-    var vals = trendData.map(function(d){ return s.fmt(d[s.key]); });
-    var hasData = vals.some(function(v){ return v != null && v !== 0; });
-    return {
-      label: s.label,
-      data: vals,
-      borderColor: s.color, pointBackgroundColor: s.color,
-      backgroundColor: 'transparent',
-      borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
-      tension: 0.3, fill: false, yAxisID: s.axis,
-      hidden: !hasData,
-      datalabels: {
-        display: hasData,
-        anchor: s.align==='center'?'center':(s.align==='bottom'?'start':'end'),
-        align:  s.align==='center'?'center':(s.align==='bottom'?'bottom':'top'),
-        offset: s.align==='center'?0:s.offset,
-        color: s.key==='ritase'?'#fff':s.color,
-        font: {family:'Inter', size:9, weight:'700'},
-        formatter: function(v,ctx2){
-          return v!=null ? String(v)+(s.key==='olf'?'%':'') : '';
-        },
-        backgroundColor: s.key==='ritase'?'rgba(40,40,40,0.85)':'rgba(255,255,255,0.9)',
-        borderRadius: 3, padding:{top:1,bottom:1,left:2,right:2}
+  charts['normalDist']=new Chart(document.getElementById('chartNormalDist'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Jumlah Driver',data:buckets,backgroundColor:'#3b82f633',borderColor:'#3b82f6',borderWidth:1,order:2},
+        {label:'Kurva Normal',data:normalCurve,type:'line',borderColor:'#ef4444',borderWidth:2,fill:false,pointRadius:0,tension:.4,order:1,yAxisID:'y1'},
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:10}}},
+        annotation:{annotations:{
+          mean:{type:'line',xMin:Math.round((mean-min)/binSize),xMax:Math.round((mean-min)/binSize),borderColor:'#f59e0b',borderWidth:2,label:{display:true,content:`Avg: Rp ${fmt(mean)}`,position:'start',font:{size:10}}}
+        }}
+      },
+      scales:{
+        y:{title:{display:true,text:'Jumlah Driver',font:{size:10}},grid:{color:'#e4ecf4'}},
+        y1:{position:'right',display:false},
+        x:{ticks:{maxRotation:45,font:{size:9},callback:(v,i)=>i%3===0?v:''},grid:{display:false}}
       }
-    };
-  });
-
-  charts.dTREND = new Chart(document.getElementById('dTREND').getContext('2d'), {
-    type: 'line',
-    data: { labels: trendLabels, datasets: trendDatasets },
-    plugins: [endLabelPlugin],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1,
-          titleColor:'#1a1d23', bodyColor:'#5f6368',
-          callbacks: { label: function(ctx) {
-            var s=trendSeries[ctx.datasetIndex];
-            var raw=trendData[ctx.dataIndex][s.key];
-            return s.label+': '+(raw!=null?s.disp(raw):'—');
-          }}
-        },
-        datalabels: { clip: false }
-      },
-      scales: {
-        x: { ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}}, grid:{color:'#f0f0f0'} },
-        yL: { display:false, min:0, max:40 },
-        yR: { display:false, min:0, max:100 }
-      },
-      layout: { padding:{ top:22, right:80, bottom:8, left:4 } }
     }
   });
 }
 
-// ── COMPARISON APPLY ───────────────────────────────────────────
-function applyCmp() {
-  cmpA.start = document.getElementById('cmpAStart')?.value || '';
-  cmpA.end   = document.getElementById('cmpAEnd')?.value   || '';
-  cmpB.start = document.getElementById('cmpBStart')?.value || '';
-  cmpB.end   = document.getElementById('cmpBEnd')?.value   || '';
-  renderComparison();
+// ── Update nav to handle insight ───────────────────────────────────────────
+const _origNav = nav;
+// Override nav to trigger insight render
+function nav(page,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-'+page).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('pgTitle').textContent={overview:'Overview',driver:'Daftar Driver',chart:'Grafik',insight:'Insight'}[page]||page;
+  if(page==='chart') renderCharts();
+  if(page==='insight') renderInsight();
 }
 
-// ── CONTROLS ───────────────────────────────────────────────────
-function setNav(n) {
-  currentNav = n;
-  ['overview','detail'].forEach(x=>{
-    document.getElementById('nav-'+x)?.classList.toggle('active', x===n);
-  });
-  render();
-}
-
-// ── INIT ───────────────────────────────────────────────────────
-updateSidebarActive();
-loadData();
+// ── KICK OFF ──────────────────────────────────────────────────────────────────
+initUI();
+buildBUFilter('all');
+renderAll();
 </script>
 </body>
 </html>
