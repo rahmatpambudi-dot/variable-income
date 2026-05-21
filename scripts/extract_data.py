@@ -376,6 +376,15 @@ def build_driver_data(nik_to_ins, ot, months):
     ot_only  = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
     ins_only = sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
     print(f'\n✅ Total: {len(drivers)} drivers (Both:{both}, OT only:{ot_only}, Ins only:{ins_only})')
+    # Debug per site
+    from collections import Counter
+    site_counts = Counter(d['site'] for d in drivers)
+    ins_per_site = {}
+    for d in drivers:
+        ins_per_site[d['site']] = ins_per_site.get(d['site'], 0) + d['total_ins']
+    print('  Driver per site (top 10):')
+    for s, c in sorted(site_counts.items(), key=lambda x: -x[1])[:10]:
+        print(f'    {s}: {c} drivers, ins=Rp {ins_per_site.get(s,0):,.0f}')
     return drivers
 
 # ── HTML Update ───────────────────────────────────────────────────────────────
