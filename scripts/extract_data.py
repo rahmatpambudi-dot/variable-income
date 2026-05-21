@@ -1,7 +1,7 @@
 """
-extract_data.py
-Auto-mapping: cross-match NIK dari insentif tab ke Location Name di OT.
-Base data = OT (semua driver), join insentif by NIK.
+extract_data.py - Variable Income Dashboard
+Base = OT. Join insentif by NIK (akumulasi semua tab).
+Location → display site via hardcode mapping.
 """
 
 import os, json, re, time
@@ -31,11 +31,32 @@ MONTH_ORDER = [
 MONTH_NUM_MAP = {str(i+1): m for i, m in enumerate(MONTH_ORDER)}
 MONTH_ID = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
+# Mapping Location Name → display site (hardcode)
+LOCATION_TO_SITE = [
+    (['JABABEKA'],                  'Jababeka'),
+    (['CIKUPA'],                    'Cikupa'),
+    (['SIDOARJO', 'SURABAYA', 'JUANDA'], 'Sidoarjo'),
+]
+
+# Site Category override
+SITE_CAT_OVERRIDE = {
+    'DC BALI - DENPASAR'            : 'HUB',
+    'DC HANKAM RAYA'                : 'HUB',
+    'DC BALIKPAPAN'                 : 'HUB',
+    'DC TALLO MAKASSAR'             : 'RDC',
+    'DC TALLO MAKASSAR (AHI)'       : 'RDC',
+    'DC TANJUNG MORAWA MEDAN'       : 'RDC',
+    'DC TANJUNG MORAWA MEDAN (KLS)' : 'RDC',
+    'DC TANJUNG MORAWA (AHI)'       : 'RDC',
+    'DC CIKANDE'                    : 'Lainnya',
+    'DC CIKANDE 2'                  : 'Lainnya',
+    'DC CIKANDE - SERANG KM 41'     : 'Lainnya',
+}
+
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets.readonly',
     'https://www.googleapis.com/auth/drive.readonly',
 ]
-
 HTML_PATH = 'dashboard_variable_income.html'
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -49,33 +70,8 @@ def get_gc():
 
 def to_num(v):
     if v in (None, '', 'None'): return 0.0
-    try:
-        return float(str(v).replace(',', '').replace(' ', ''))
-    except:
-        return 0.0
-
-# ── Site Category Override ───────────────────────────────────────────────────
-# Koreksi site_cat yang salah/kosong di Raw Data
-SITE_CAT_OVERRIDE = {
-    'DC BALI - DENPASAR'            : 'HUB',
-    'DC HANKAM RAYA'                : 'HUB',
-    'DC TALLO MAKASSAR'             : 'RDC',
-    'DC TALLO MAKASSAR (AHI)'       : 'RDC',
-    'DC TANJUNG MORAWA MEDAN'       : 'RDC',
-    'DC TANJUNG MORAWA MEDAN (KLS)' : 'RDC',
-    'DC TANJUNG MORAWA (AHI)'       : 'RDC',
-    'DC CIKANDE'                    : 'Lainnya',
-    'DC CIKANDE 2'                  : 'Lainnya',
-    'DC CIKANDE - SERANG KM 41'     : 'Lainnya',
-}
-
-def get_site_cat(location, raw_site_cat):
-    """Ambil site_cat dengan override kalau perlu"""
-    loc_upper = str(location).strip().upper()
-    for key, cat in SITE_CAT_OVERRIDE.items():
-        if key.upper() in loc_upper:
-            return cat
-    return raw_site_cat if raw_site_cat else 'Lainnya'
+    try: return float(str(v).replace(',','').replace(' ',''))
+    except: return 0.0
 
 def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
@@ -87,32 +83,46 @@ def normalize_month(m):
     return MONTH_NUM_MAP.get(m, '')
 
 def col_first(headers, name):
-    for i, h in enumerate(headers):
-        if str(h).strip().lower() == name.strip().lower(): return i
+    for i,h in enumerate(headers):
+        if str(h).strip().lower()==name.strip().lower(): return i
     return -1
 
 def col_last(headers, name):
-    for i in range(len(headers)-1, -1, -1):
-        if str(headers[i]).strip().lower() == name.strip().lower(): return i
+    for i in range(len(headers)-1,-1,-1):
+        if str(headers[i]).strip().lower()==name.strip().lower(): return i
     return -1
 
 def col_contains_last(headers, keyword):
-    for i in range(len(headers)-1, -1, -1):
+    for i in range(len(headers)-1,-1,-1):
         if keyword.lower() in str(headers[i]).strip().lower(): return i
     return -1
 
-# ── Step 1: Extract Insentif NIKs per site ────────────────────────────────────
+def get_display_site(location):
+    """Map location name ke display site label"""
+    loc_upper = str(location).strip().upper()
+    for keywords, label in LOCATION_TO_SITE:
+        if any(k in loc_upper for k in keywords):
+            return label
+    return location  # fallback ke nama asli
 
-def extract_insentif_niks(wb_ins):
+def get_site_cat(location, raw_site_cat):
+    """Site category dengan override"""
+    loc_upper = str(location).strip().upper()
+    for key, cat in SITE_CAT_OVERRIDE.items():
+        if key.upper() in loc_upper:
+            return cat
+    return raw_site_cat if raw_site_cat else 'Lainnya'
+
+# ── Extract Insentif ──────────────────────────────────────────────────────────
+
+def extract_insentif(wb_ins):
     """
     Baca semua tab insentif.
-    Return:
-      - nik_to_ins: dict NIK → {name, site, months: {month: idr}}
-      - site_niks: dict site → set of NIKs
+    NIK bisa ada di multiple tab (perbantuan) → akumulasi semua.
+    Return: dict NIK → {name, months: {month: idr}}
     """
-    print('\n📥 Step 1: Extract insentif NIKs per site...')
+    print('\n📥 Extracting Insentif...')
     nik_to_ins = {}
-    site_niks = {}
 
     for i, site in enumerate(INSENTIF_SITES):
         try:
@@ -129,65 +139,48 @@ def extract_insentif_niks(wb_ins):
             c_ins   = col_first(headers, 'Insentif per MPP')
 
             if c_nik < 0:
-                print(f'  [WARN] {site}: kolom NIK1 tidak ditemukan')
+                print(f'  [WARN] {site}: NIK1 tidak ditemukan')
                 continue
 
-            niks_in_site = set()
             count = 0
-
             for row in all_rows[1:]:
-                def g(c): return row[c].strip() if 0 <= c < len(row) else ''
+                def g(c): return row[c].strip() if 0<=c<len(row) else ''
                 nik   = g(c_nik)
                 name  = g(c_name)
                 month = normalize_month(g(c_month))
                 ins   = to_num(g(c_ins))
 
-                if is_dummy(nik, name) or not nik or not month:
+                if is_dummy(nik, name) or not nik or not month or ins <= 0:
                     continue
 
-                niks_in_site.add(nik)
-
                 if nik not in nik_to_ins:
-                    nik_to_ins[nik] = {
-                        'name'  : name,
-                        'site'  : site,
-                        'months': defaultdict(float),
-                    }
+                    nik_to_ins[nik] = {'name': name, 'months': defaultdict(float)}
+
+                # Akumulasi — handle perbantuan (NIK di multiple tab)
                 nik_to_ins[nik]['months'][month] += ins
                 count += 1
 
-            site_niks[site] = niks_in_site
-            print(f'  ✅ {site}: {len(niks_in_site)} unique NIKs, {count} rows')
-
-            if i < len(INSENTIF_SITES) - 1:
-                time.sleep(3)
+            print(f'  ✅ {site}: {count} rows')
+            if i < len(INSENTIF_SITES)-1: time.sleep(3)
 
         except gspread.exceptions.WorksheetNotFound:
-            print(f'  [MISS] Sheet "{site}" tidak ditemukan')
+            print(f'  [MISS] "{site}"')
         except Exception as e:
             print(f'  [ERROR] {site}: {e}')
 
     print(f'  Total insentif NIKs: {len(nik_to_ins)}')
-    return nik_to_ins, site_niks
+    return nik_to_ins
 
-# ── Step 2: Extract OT & Auto-Map ─────────────────────────────────────────────
+# ── Extract OT ────────────────────────────────────────────────────────────────
 
-def extract_ot_and_map(wb_ot, site_niks):
-    """
-    Baca RAW DATA OT.
-    Auto-map: untuk setiap NIK yang ada di insentif,
-    catat Location Name yang dipakai di OT.
-    Return:
-      - ot_data: dict NIK → {name, location, site_cat, bu, months}
-      - site_mapping: dict ins_site → set of OT location names
-    """
-    print('\n📥 Step 2: Extract OT & auto-map sites...')
+def extract_ot(wb_ot):
+    print('\n📥 Extracting OT...')
     ws = wb_ot.worksheet(OT_SHEET_TAB)
     print('  Fetching all rows...')
     all_rows = ws.get_all_values()
     if len(all_rows) < 3:
         print('  [ERROR] Sheet kosong!')
-        return {}, {}
+        return {}
 
     headers = all_rows[1]  # header di row ke-2
     print(f'  {len(headers)} kolom, {len(all_rows)-2} baris data')
@@ -204,18 +197,11 @@ def extract_ot_and_map(wb_ot, site_niks):
     }
     print(f'  Column indices: {ci}')
 
-    # Reverse lookup: NIK → insentif site
-    nik_to_ins_site = {}
-    for ins_site, niks in site_niks.items():
-        for nik in niks:
-            nik_to_ins_site[nik] = ins_site
-
-    ot_data = {}
-    site_mapping = defaultdict(set)  # ins_site → set of OT location names
+    ot = {}
     skipped = 0
 
     for row in all_rows[2:]:
-        def g(c): return row[c].strip() if 0 <= c < len(row) else ''
+        def g(c): return row[c].strip() if 0<=c<len(row) else ''
 
         nik      = g(ci['nik'])
         name     = g(ci['name'])
@@ -230,78 +216,54 @@ def extract_ot_and_map(wb_ot, site_niks):
             skipped += 1
             continue
 
-        # Auto-map: kalau NIK ini ada di insentif, catat locationnya
-        if nik in nik_to_ins_site:
-            ins_site = nik_to_ins_site[nik]
-            if location:
-                site_mapping[ins_site].add(location)
-
-        if nik not in ot_data:
-            ot_data[nik] = {
-                'name'    : name,
-                'location': location,
-                'site_cat': get_site_cat(location, site_cat),
-                'bu'      : bu,
-                'months'  : defaultdict(lambda: {'hours': 0.0, 'idr': 0.0}),
+        if nik not in ot:
+            ot[nik] = {
+                'name'        : name,
+                'location'    : location,
+                'display_site': get_display_site(location),
+                'site_cat'    : get_site_cat(location, site_cat),
+                'bu'          : bu,
+                'months'      : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
             }
 
-        ot_data[nik]['months'][month]['hours'] += hours
-        ot_data[nik]['months'][month]['idr']   += idr
+        ot[nik]['months'][month]['hours'] += hours
+        ot[nik]['months'][month]['idr']   += idr
 
-    print(f'  ✅ OT: {len(ot_data)} drivers, {skipped} rows skipped')
+    print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
+    return ot
 
-    # Print mapping hasil auto-detect
-    print('\n🗺️  Auto-detected site mapping:')
-    for ins_site, locations in sorted(site_mapping.items()):
-        print(f'  {ins_site} → {sorted(locations)}')
+# ── Detect Months ─────────────────────────────────────────────────────────────
 
-    return ot_data, dict(site_mapping)
-
-# ── Step 3: Detect Months ─────────────────────────────────────────────────────
-
-def detect_months(nik_to_ins, ot_data):
+def detect_months(nik_to_ins, ot):
     month_set = set()
     for d in nik_to_ins.values(): month_set.update(d['months'].keys())
-    for d in ot_data.values():    month_set.update(d['months'].keys())
+    for d in ot.values():         month_set.update(d['months'].keys())
     months = sorted(month_set, key=lambda m: MONTH_ORDER.index(m))
     print(f'\n📅 Months: {months}')
     return months
 
-# ── Step 4: Build Driver Data ─────────────────────────────────────────────────
+# ── Build Driver Data ─────────────────────────────────────────────────────────
 
-def build_driver_data(nik_to_ins, ot_data, site_mapping, months):
-    """
-    Base = OT (semua driver dari Raw Data).
-    Join insentif by NIK.
-    """
-    all_niks = set(ot_data.keys()) | set(nik_to_ins.keys())
-
-    # Build reverse: OT location → insentif site (from auto-mapping)
-    location_to_ins_site = {}
-    for ins_site, locations in site_mapping.items():
-        for loc in locations:
-            location_to_ins_site[loc] = ins_site
-
+def build_driver_data(nik_to_ins, ot, months):
+    all_niks = set(ot.keys()) | set(nik_to_ins.keys())
     drivers = []
 
     for nik in all_niks:
-        o = ot_data.get(nik)
+        o   = ot.get(nik)
         ins = nik_to_ins.get(nik)
 
         if o:
             name     = o['name']
-            location = o['location']
+            site     = o['display_site']
             site_cat = o['site_cat']
+            location = o['location']
             bu       = o['bu']
-            # Tentukan insentif site label dari mapping
-            ins_site_label = location_to_ins_site.get(location, '')
-            display_site   = ins_site_label if ins_site_label else location
         else:
             name     = ins['name'] if ins else nik
-            location = ''
+            site     = '-'
             site_cat = ''
+            location = ''
             bu       = ''
-            display_site = ins['site'] if ins else '-'
 
         monthly = {}
         total_ot_hours = 0.0
@@ -326,7 +288,7 @@ def build_driver_data(nik_to_ins, ot_data, site_mapping, months):
         drivers.append({
             'nik'           : nik,
             'name'          : name,
-            'site'          : display_site,
+            'site'          : site,
             'site_cat'      : site_cat,
             'location'      : location,
             'bu'            : bu,
@@ -344,48 +306,43 @@ def build_driver_data(nik_to_ins, ot_data, site_mapping, months):
     both     = sum(1 for d in drivers if d['has_ot'] and d['has_ins'])
     ot_only  = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
     ins_only = sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
-    print(f'\n✅ Total drivers: {len(drivers)} (Both: {both}, OT only: {ot_only}, Ins only: {ins_only})')
+    print(f'\n✅ Total: {len(drivers)} drivers (Both:{both}, OT only:{ot_only}, Ins only:{ins_only})')
     return drivers
 
 # ── HTML Update ───────────────────────────────────────────────────────────────
 
 def jd(obj):
-    return json.dumps(obj, separators=(',', ':'), ensure_ascii=False)
+    return json.dumps(obj, separators=(',',':'), ensure_ascii=False)
 
 def update_html(drivers, months, last_data_date):
     with open(HTML_PATH, 'r', encoding='utf-8') as f:
         html = f.read()
-
     html = re.sub(r'Update: [^<"]+', f'Update: {last_data_date}', html)
     html = re.sub(r'const MONTHS=\[[^\]]*\]', f'const MONTHS={jd(months)}', html)
     html = re.sub(r'const DRIVERS=\[.*?\];', f'const DRIVERS={jd(drivers)};', html, flags=re.DOTALL)
-
     with open(HTML_PATH, 'w', encoding='utf-8') as f:
         f.write(html)
-
     wib = timezone(timedelta(hours=7))
-    now = datetime.now(wib).strftime('%d %b %Y %H:%M WIB')
-    print(f'✅ HTML updated [{now}]')
+    print(f'✅ HTML updated [{datetime.now(wib).strftime("%d %b %Y %H:%M WIB")}]')
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     print('=== Variable Income Dashboard — Auto Update ===\n')
-    gc = get_gc()
-
+    gc     = get_gc()
     wb_ot  = gc.open_by_key(os.environ['SHEET_ID_OT'])
     wb_ins = gc.open_by_key(os.environ['SHEET_ID_INSENTIF'])
 
-    nik_to_ins, site_niks = extract_insentif_niks(wb_ins)
-    ot_data, site_mapping = extract_ot_and_map(wb_ot, site_niks)
-    months                = detect_months(nik_to_ins, ot_data)
-    drivers               = build_driver_data(nik_to_ins, ot_data, site_mapping, months)
+    nik_to_ins = extract_insentif(wb_ins)
+    ot         = extract_ot(wb_ot)
+    months     = detect_months(nik_to_ins, ot)
+    drivers    = build_driver_data(nik_to_ins, ot, months)
 
-    wib = timezone(timedelta(hours=7))
+    wib   = timezone(timedelta(hours=7))
     today = datetime.now(wib)
-    last_month = months[-1] if months else today.strftime('%B')
-    last_month_idx = MONTH_ORDER.index(last_month) + 1
-    last_data_date = f"{today.day} {MONTH_ID[last_month_idx]} {today.year}"
+    last_month      = months[-1] if months else today.strftime('%B')
+    last_month_idx  = MONTH_ORDER.index(last_month) + 1
+    last_data_date  = f"{today.day} {MONTH_ID[last_month_idx]} {today.year}"
 
     update_html(drivers, months, last_data_date)
 
