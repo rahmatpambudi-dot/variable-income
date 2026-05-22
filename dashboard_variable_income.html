@@ -979,6 +979,29 @@ function renderInsight() {
   destroyChart('otCat');
   const catOrder = ['Holiday','Langsiran','Project','Corporate','Delivery','Lainnya'];
   const catLabels = catOrder.filter(c=>catAgg[c]);
+  // Center text plugin untuk donut
+  const centerTextPlugin = {
+    id: 'centerText',
+    beforeDraw(chart) {
+      if (chart.config.type !== 'doughnut') return;
+      const { ctx, chartArea: { top, bottom, left, right } } = chart;
+      const cx = (left + right) / 2;
+      const cy = (top + bottom) / 2;
+      ctx.save();
+      // Total label
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.fillStyle = '#1a2e45';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Rp ' + fmt(totalOTIdr), cx, cy - 9);
+      // Subtitle
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.fillStyle = '#7a94b0';
+      ctx.fillText('Total (100%)', cx, cy + 10);
+      ctx.restore();
+    }
+  };
+
   charts['otCat'] = new Chart(document.getElementById('chartOTCat'),{
     type:'doughnut',
     data:{
@@ -992,6 +1015,7 @@ function renderInsight() {
     },
     options:{
       responsive:true,
+      cutout: '62%',
       layout:{ padding:{ top:10, bottom:10, left:10, right:10 } },
       plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12 } },
@@ -1023,8 +1047,10 @@ function renderInsight() {
           clamp: true,
           clip: false,
         },
+        centerText: {},
       }
-    }
+    },
+    plugins: [centerTextPlugin],
   });
 
   // OT vs Insentif per site stacked bar — ikut filter aktif
@@ -1038,12 +1064,15 @@ function renderInsight() {
     return {s, ot, ins, tot:ot+ins};
   }).sort((a,b)=>b.tot-a.tot).slice(0,10);
 
+  // Hitung total per site untuk persentase
+  const grandSiteTotal = siteTotal.map(s => s.ot + s.ins);
+
   charts['otInsComp'] = new Chart(document.getElementById('chartOTInsComp'),{
     type:'bar',
     data:{
       labels: siteTotal.map(s=>s.s.length>15?s.s.substring(0,15)+'…':s.s),
       datasets:[
-        {label:'OT',     data:siteTotal.map(s=>s.ot),  backgroundColor:'#3b82f6'},
+        {label:'OT',      data:siteTotal.map(s=>s.ot),  backgroundColor:'#3b82f6'},
         {label:'Insentif',data:siteTotal.map(s=>s.ins), backgroundColor:'#22c55e'},
       ]
     },
@@ -1051,21 +1080,36 @@ function renderInsight() {
       indexAxis:'y', responsive:true,
       plugins:{
         legend:{position:'bottom',labels:{font:{size:10}}},
-        tooltip:{callbacks:{label: ctx=>`${ctx.dataset.label}: Rp ${fmt(ctx.raw)}`}},
+        tooltip:{callbacks:{
+          label: ctx => {
+            const tot = grandSiteTotal[ctx.dataIndex] || 1;
+            const pct = (ctx.raw / tot * 100).toFixed(1);
+            return ` ${ctx.dataset.label}: Rp ${fmt(ctx.raw)} (${pct}%)`;
+          }
+        }},
         datalabels: {
-          display: function(ctx) { return ctx.raw > 0; },
-          color: function(ctx) { return ctx.datasetIndex === 0 ? '#1d4ed8' : '#15803d'; },
-          font: { size: 9, weight: 'bold' },
-          formatter: function(val) { return val > 0 ? fmt(val) : ''; },
-          anchor: 'end',
-          align: 'end',
-          offset: 2,
+          display: function(ctx) {
+            const tot = grandSiteTotal[ctx.dataIndex] || 1;
+            return ctx.raw / tot > 0.07; // tampilkan jika slice cukup lebar (>7%)
+          },
+          color: '#fff',
+          font: { size: 10, weight: 'bold' },
+          formatter: function(val, ctx) {
+            const tot = grandSiteTotal[ctx.dataIndex] || 1;
+            const pct = (val / tot * 100).toFixed(0);
+            return fmt(val) + ' & ' + pct + '%';
+          },
+          anchor: 'center',
+          align: 'center',
+          backgroundColor: 'rgba(0,0,0,0.22)',
+          borderRadius: 5,
+          padding: { top:3, bottom:3, left:6, right:6 },
           clip: false,
         }
       },
       scales:{
-        x:{stacked:true,ticks:{callback:v=>fmt(v)}},
-        y:{stacked:true}
+        x:{stacked:true,ticks:{callback:v=>fmt(v)},grid:{color:'#e4ecf4'}},
+        y:{stacked:true,grid:{display:false}}
       }
     }
   });
