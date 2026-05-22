@@ -166,7 +166,9 @@ def is_dummy(nik, name=''):
 def normalize_month(m):
     m = str(m).strip()
     if m in MONTH_ORDER: return m
-    return MONTH_NUM_MAP.get(m, '')
+    # handle '05', '5', 5 dll
+    m_stripped = m.lstrip('0') or '0'
+    return MONTH_NUM_MAP.get(m_stripped, MONTH_NUM_MAP.get(m, ''))
 
 def col_first(headers, name):
     for i,h in enumerate(headers):
