@@ -300,6 +300,17 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       </div>
     </div>
 
+    <!-- OT per BU + placeholder -->
+    <div class="ch2" style="margin-bottom:13px">
+      <div class="ccard">
+        <div class="ctitle">Komposisi OT per BU</div>
+        <div class="csub">% kontribusi terhadap total OT IDR</div>
+        <canvas id="chartOTBU" height="220"></canvas>
+      </div>
+      <div class="ccard" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">
+      </div>
+    </div>
+
     <!-- Normal distribution -->
     <div class="ch2" style="margin-bottom:13px">
       <div class="ccard">
@@ -1215,6 +1226,132 @@ function renderInsight() {
       }
     },
     plugins: [barLabelPlugin],
+  });
+
+  // OT per BU donut chart
+  destroyChart('otBU');
+  const buAgg = {};
+  data.forEach(d => {
+    const bu = d.bu || 'Lainnya';
+    if (!bu) return;
+    const src = (S.month !== 'all' && d.ot_cats_monthly && d.ot_cats_monthly[S.month])
+                ? d.ot_cats_monthly[S.month]
+                : (d.ot_cats || {});
+    const idr = Object.values(src).reduce((s, v) => s + (v.idr || 0), 0);
+    if (!buAgg[bu]) buAgg[bu] = 0;
+    buAgg[bu] += idr;
+  });
+
+  const buEntries = Object.entries(buAgg).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  const buLabels  = buEntries.map(e => e[0]);
+  const buValues  = buEntries.map(e => e[1]);
+  const totalBUIdr = buValues.reduce((s,v) => s+v, 0) || 1;
+
+  const BU_COLORS = ['#023188','#2563eb','#f97316','#22c55e','#a855f7','#ef4444','#eab308','#06b6d4','#ec4899','#94a3b8'];
+
+  const centerBUPlugin = {
+    id: 'centerBU',
+    beforeDraw(chart) {
+      if (chart.canvas.id !== 'chartOTBU') return;
+      const { ctx, chartArea: { top, bottom, left, right } } = chart;
+      const cx = (left + right) / 2;
+      const cy = (top + bottom) / 2;
+      ctx.save();
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.fillStyle = '#1a2e45';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Rp ' + fmt(totalBUIdr), cx, cy - 9);
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.fillStyle = '#7a94b0';
+      ctx.fillText('Total (100%)', cx, cy + 10);
+      ctx.restore();
+    }
+  };
+
+  const buConnectorPlugin = {
+    id: 'buConnector',
+    afterDraw(chart) {
+      if (chart.canvas.id !== 'chartOTBU') return;
+      const ctx = chart.ctx;
+      const dataset = chart.data.datasets[0];
+      const meta = chart.getDatasetMeta(0);
+      meta.data.forEach((arc, i) => {
+        const val = dataset.data[i];
+        if (!val || val <= 0) return;
+        const midAngle = (arc.startAngle + arc.endAngle) / 2;
+        const outerR = arc.outerRadius;
+        const cx = arc.x, cy = arc.y;
+        const p1x = cx + outerR * Math.cos(midAngle);
+        const p1y = cy + outerR * Math.sin(midAngle);
+        const elbowR = outerR + 18;
+        const p2x = cx + elbowR * Math.cos(midAngle);
+        const p2y = cy + elbowR * Math.sin(midAngle);
+        const p3x = p2x + (Math.cos(midAngle) >= 0 ? 8 : -8);
+        const p3y = p2y;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(100,120,150,0.55)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(p1x, p1y);
+        ctx.lineTo(p2x, p2y);
+        ctx.lineTo(p3x, p3y);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+  };
+
+  charts['otBU'] = new Chart(document.getElementById('chartOTBU'), {
+    type: 'doughnut',
+    data: {
+      labels: buLabels,
+      datasets: [{
+        data: buValues,
+        backgroundColor: buLabels.map((_, i) => BU_COLORS[i % BU_COLORS.length]),
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '58%',
+      layout: { padding: { top:45, bottom:45, left:65, right:65 } },
+      plugins: {
+        legend: { position:'bottom', labels:{ font:{size:11}, boxWidth:12 } },
+        tooltip: { callbacks: {
+          label: function(ctx) {
+            const pct = (ctx.raw / totalBUIdr * 100).toFixed(1);
+            return ' ' + ctx.label + ': Rp ' + fmt(ctx.raw) + ' (' + pct + '%)';
+          }
+        }},
+        datalabels: {
+          display: function(ctx) { return ctx.dataset.data[ctx.dataIndex] > 0; },
+          color: '#1a2e45',
+          font: function(ctx) {
+            const pct = ctx.dataset.data[ctx.dataIndex] / totalBUIdr;
+            return { weight:'bold', size: pct < 0.05 ? 9 : 10 };
+          },
+          formatter: function(val) {
+            const pct = (val / totalBUIdr * 100).toFixed(1);
+            return pct + '%\n' + fmt(val);
+          },
+          anchor: 'end',
+          align: 'end',
+          offset: 8,
+          backgroundColor: null,
+          borderWidth: 0,
+          borderRadius: 0,
+          padding: { top:1, bottom:1, left:2, right:2 },
+          textAlign: 'center',
+          clamp: false,
+          clip: false,
+        },
+        centerBU: {},
+      }
+    },
+    plugins: [centerBUPlugin, buConnectorPlugin],
   });
 
   // Normal distribution chart
