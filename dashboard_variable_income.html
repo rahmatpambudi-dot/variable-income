@@ -972,10 +972,14 @@ function renderInsight() {
   const catAgg = {};
   const catDrivers = {};
   data.forEach(d => {
-    // Pilih sumber: monthly atau total
-    const src = (S.month!=='all' && d.ot_cats_monthly && d.ot_cats_monthly[S.month])
-                ? d.ot_cats_monthly[S.month]
-                : (d.ot_cats || {});
+    // Kalau filter bulan aktif, hanya pakai data bulan itu — jangan fallback ke total
+    let src;
+    if (S.month !== 'all') {
+      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.month]) ? d.ot_cats_monthly[S.month] : null;
+    } else {
+      src = d.ot_cats || {};
+    }
+    if (!src) return; // skip driver yang tidak punya data bulan ini
     Object.entries(src).forEach(([cat,vals])=>{
       if(!catAgg[cat]) { catAgg[cat]={hours:0,idr:0}; catDrivers[cat]=new Set(); }
       catAgg[cat].hours += vals.hours||0;
@@ -1234,9 +1238,13 @@ function renderInsight() {
   data.forEach(d => {
     const bu = d.bu || 'Lainnya';
     if (!bu) return;
-    const src = (S.month !== 'all' && d.ot_cats_monthly && d.ot_cats_monthly[S.month])
-                ? d.ot_cats_monthly[S.month]
-                : (d.ot_cats || {});
+    let src;
+    if (S.month !== 'all') {
+      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.month]) ? d.ot_cats_monthly[S.month] : null;
+    } else {
+      src = d.ot_cats || {};
+    }
+    if (!src) return; // skip driver tanpa data bulan ini
     const idr = Object.values(src).reduce((s, v) => s + (v.idr || 0), 0);
     if (!buAgg[bu]) buAgg[bu] = 0;
     buAgg[bu] += idr;
