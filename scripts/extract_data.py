@@ -164,11 +164,26 @@ def is_dummy(nik, name=''):
     return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
 
 def normalize_month(m):
+    import re
     m = str(m).strip()
     if m in MONTH_ORDER: return m
-    # handle '05', '5', 5 dll
+    # handle '5', '05'
     m_stripped = m.lstrip('0') or '0'
-    return MONTH_NUM_MAP.get(m_stripped, MONTH_NUM_MAP.get(m, ''))
+    result = MONTH_NUM_MAP.get(m_stripped, MONTH_NUM_MAP.get(m, ''))
+    if result: return result
+    # MM/DD/YYYY or M/D/YYYY
+    match = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', m)
+    if match:
+        return MONTH_NUM_MAP.get(match.group(1).lstrip('0') or '0', '')
+    # YYYY-MM-DD
+    match = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})$', m)
+    if match:
+        return MONTH_NUM_MAP.get(match.group(2).lstrip('0') or '0', '')
+    # DD-MM-YYYY
+    match = re.match(r'^(\d{1,2})-(\d{1,2})-(\d{4})$', m)
+    if match:
+        return MONTH_NUM_MAP.get(match.group(2).lstrip('0') or '0', '')
+    return ''
 
 def col_first(headers, name):
     for i,h in enumerate(headers):
