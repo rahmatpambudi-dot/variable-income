@@ -236,7 +236,7 @@ def extract_insentif(wb_ins):
 
             count = 0
             for row in all_rows[1:]:
-                def g(c): return row[c].strip() if 0<=c<len(row) else ''
+                def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
                 month = normalize_month(g(c_month))
                 ins   = to_num(g(c_ins))
 
@@ -303,7 +303,7 @@ def extract_ot(wb_ot):
     skipped = 0
 
     for row in all_rows[2:]:
-        def g(c): return row[c].strip() if 0<=c<len(row) else ''
+        def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
 
         nik      = g(ci['nik'])
         name     = g(ci['name'])
