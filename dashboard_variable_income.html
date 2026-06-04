@@ -57,6 +57,17 @@ html,body{height:100%;overflow:hidden}
 .chip.time{color:#22c55e;border-color:#86efac;background:#f0fdf4;font-weight:600}
 .rbtn{padding:5px 10px;border:1px solid #c2d0e5;border-radius:7px;background:#fff;font-size:12px;color:#4a5568;cursor:pointer}
 .rbtn:hover{background:#e4edf8}
+.date-range-wrap{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #c2d0e5;border-radius:7px;padding:3px 8px}
+.date-range-wrap label{font-size:10px;color:#7a94b0;white-space:nowrap}
+.date-range-wrap input[type=date]{border:none;outline:none;font-size:11px;color:#1a2e45;background:transparent;cursor:pointer;padding:1px 2px;width:110px}
+.date-range-wrap input[type=date]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+.date-range-sep{font-size:10px;color:#94a3b8}
+.dist-range-wrap{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.dist-range-wrap label{font-size:10px;color:#7a94b0;white-space:nowrap}
+.dist-range-wrap input[type=range]{width:120px;accent-color:#6d28d9;cursor:pointer}
+.dist-range-val{font-size:10px;font-weight:600;color:#6d28d9;min-width:50px}
+.dist-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.dist-filter-row .cf{font-size:10px;padding:3px 8px}
 .content{flex:1;overflow-y:auto;padding:14px 18px}
 .content::-webkit-scrollbar{width:5px}.content::-webkit-scrollbar-thumb{background:#c2d0e5;border-radius:4px}
 .page{display:none}.page.active{display:block}
@@ -152,12 +163,21 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
   <div class="topbar">
     <div class="pg-title" id="pgTitle">Overview</div>
     <div class="chips">
-      <select id="monthSel" onchange="renderAll()">
+      <div class="date-range-wrap">
+        <label>Dari</label>
+        <input type="date" id="dateFrom" onchange="onDateRangeChange()">
+        <span class="date-range-sep">—</span>
+        <label>Sampai</label>
+        <input type="date" id="dateTo" onchange="onDateRangeChange()">
+        <button class="rbtn" style="border:none;padding:3px 6px;font-size:10px" onclick="clearDateRange()">✕</button>
+      </div>
+      <select id="monthSel" onchange="renderAll()" style="display:none">
         <option value="all">Semua Bulan</option>
       </select>
       <select id="siteSel" onchange="setSiteFromSelect()">
         <option value="all">Semua Site</option>
       </select>
+      <div class="chip" id="activeMonthChip" style="display:none;background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;font-weight:600"></div>
       <div class="chip time" id="clkChip">--:--</div>
       <div class="chip" id="updChip">Update: 29 Mei 2026</div>
       <button class="rbtn" onclick="renderAll()">↻ Refresh</button>
@@ -359,7 +379,16 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
         <div class="ccard">
           <div class="ctitle">Distribusi Grand Total per Driver</div>
           <div class="csub">Histogram — OT + Insentif</div>
-          <canvas id="chartNormalDist" height="180"></canvas>
+          <div class="dist-range-wrap" id="distRangeWrap">
+            <label>Range:</label>
+            <input type="range" id="distMinSlider" min="0" max="100" value="0" oninput="onDistRangeChange()">
+            <span class="dist-range-val" id="distMinVal">0</span>
+            <span style="font-size:10px;color:#94a3b8">—</span>
+            <input type="range" id="distMaxSlider" min="0" max="100" value="100" oninput="onDistRangeChange()">
+            <span class="dist-range-val" id="distMaxVal">Max</span>
+            <button class="cf" style="padding:2px 7px;font-size:9px" onclick="resetDistRange()">Reset</button>
+          </div>
+          <canvas id="chartNormalDist" height="170"></canvas>
           <div id="statGrandTotal" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:#64748b;flex-wrap:wrap;padding:0 2px"></div>
         </div>
         <div class="ccard">
@@ -443,14 +472,134 @@ const DRIVERS=[{"nik":"E02330","name":"AMIN PRIONO.","site":"Jababeka","site_cat
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const S={
   site:'all', month:'all',
+  dateFrom:null, dateTo:null,
+  activeMonths:null,  // null = all months
   dSiteCat:'all', dBU:'all', dStatus:'all',
   dSort:'grand_total', dDir:-1,
   dPage:1, perPage:25,
-  expanded:new Set()
+  expanded:new Set(),
+  distMin:0, distMax:1,  // 0-1 fraction of value range
 };
 
 const MONTH_ID={January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'Mei',June:'Jun',July:'Jul',August:'Agu',September:'Sep',October:'Okt',November:'Nov',December:'Des'};
 const INS_SITES = new Set(['JBBK','CKP','SDA']);
+
+// ── MONTH MAPPING ─────────────────────────────────────────────────────────────
+const MONTH_START_DAY = {
+  January:1, February:2, March:3, April:4, May:5, June:6,
+  July:7, August:8, September:9, October:10, November:11, December:12
+};
+// Build month date ranges (based on MONTHS constant, year from data)
+function getMonthDateRange(monthName) {
+  const idx = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(monthName);
+  const year = 2026; // hardcoded for now, could be dynamic
+  const start = new Date(year, idx, 1);
+  const end   = new Date(year, idx+1, 0); // last day of month
+  return { start, end };
+}
+
+function onDateRangeChange() {
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal   = document.getElementById('dateTo').value;
+  if(!fromVal && !toVal) {
+    S.activeMonths = null;
+    renderAll();
+    return;
+  }
+  const from = fromVal ? new Date(fromVal) : null;
+  const to   = toVal   ? new Date(toVal)   : null;
+  // Find which months overlap with the date range
+  const active = MONTHS.filter(m => {
+    const r = getMonthDateRange(m);
+    if(from && r.end < from) return false;
+    if(to   && r.start > to) return false;
+    return true;
+  });
+  S.activeMonths = active.length === MONTHS.length ? null : active;
+  S.month = 'all'; // reset legacy
+  S.dPage = 1;
+  updateActiveMonthChip();
+  renderAll();
+}
+
+function clearDateRange() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value   = '';
+  S.activeMonths = null;
+  S.month = 'all';
+  S.dPage = 1;
+  updateActiveMonthChip();
+  renderAll();
+}
+
+// ── DIST RANGE ────────────────────────────────────────────────────────────────
+let _distValues = []; // cache all values for slider reference
+
+function initDistSlider(values) {
+  if(!values.length) return;
+  _distValues = values.slice().sort((a,b)=>a-b);
+  const minV = _distValues[0], maxV = _distValues[_distValues.length-1];
+  const minSlider = document.getElementById('distMinSlider');
+  const maxSlider = document.getElementById('distMaxSlider');
+  if(!minSlider) return;
+  minSlider.min = 0; minSlider.max = _distValues.length-1; minSlider.value = 0;
+  maxSlider.min = 0; maxSlider.max = _distValues.length-1; maxSlider.value = _distValues.length-1;
+  S.distMin = 0; S.distMax = _distValues.length-1;
+  updateDistLabels();
+}
+
+function updateDistLabels() {
+  const minV = _distValues[S.distMin] || 0;
+  const maxV = _distValues[S.distMax] || 0;
+  const minEl = document.getElementById('distMinVal');
+  const maxEl = document.getElementById('distMaxVal');
+  if(minEl) minEl.textContent = 'Rp '+fmt(minV);
+  if(maxEl) maxEl.textContent = 'Rp '+fmt(maxV);
+}
+
+function onDistRangeChange() {
+  const minSlider = document.getElementById('distMinSlider');
+  const maxSlider = document.getElementById('distMaxSlider');
+  let minIdx = parseInt(minSlider.value);
+  let maxIdx = parseInt(maxSlider.value);
+  // Prevent cross-over
+  if(minIdx >= maxIdx) {
+    if(minSlider === document.activeElement) { minIdx = maxIdx - 1; minSlider.value = minIdx; }
+    else { maxIdx = minIdx + 1; maxSlider.value = maxIdx; }
+  }
+  S.distMin = minIdx; S.distMax = maxIdx;
+  updateDistLabels();
+  // Re-render only the dist chart with filtered range
+  const data = filteredAll();
+  const vGrand = data.map(d=>dval(d,'grand_total')).filter(v=>v>0).sort((a,b)=>a-b);
+  const filtered = vGrand.filter(v => v >= _distValues[S.distMin] && v <= _distValues[S.distMax]);
+  buildDistChart('chartNormalDist', filtered, '#6d28d9', 'statGrandTotal');
+}
+
+function updateActiveMonthChip() {
+  const chip = document.getElementById('activeMonthChip');
+  if(!chip) return;
+  if(!S.activeMonths) {
+    chip.style.display = 'none';
+    chip.textContent = '';
+  } else {
+    const labels = S.activeMonths.map(m => MONTH_ID[m]||m);
+    chip.textContent = '📅 ' + labels.join(' · ');
+    chip.style.display = '';
+  }
+}
+
+function resetDistRange() {
+  const minSlider = document.getElementById('distMinSlider');
+  const maxSlider = document.getElementById('distMaxSlider');
+  if(!minSlider || !_distValues.length) return;
+  minSlider.value = 0; maxSlider.value = _distValues.length-1;
+  S.distMin = 0; S.distMax = _distValues.length-1;
+  updateDistLabels();
+  const data = filteredAll();
+  const vGrand = data.map(d=>dval(d,'grand_total')).filter(v=>v>0).sort((a,b)=>a-b);
+  buildDistChart('chartNormalDist', vGrand, '#6d28d9', 'statGrandTotal');
+}
 const PALETTE = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
 let charts={};
 
@@ -479,14 +628,18 @@ const fmtH = h => h>0 ? h.toFixed(1)+' jam' : '-';
 const ms = m => MONTH_ID[m]||m;
 
 function dval(d,key) {
-  if(S.month==='all') return d[key]||0;
-  const mv=d.monthly&&d.monthly[S.month];
-  if(!mv) return 0;
-  if(key==='total_ot_idr') return mv.ot_idr||0;
-  if(key==='total_ins') return mv.insentif||0;
-  if(key==='grand_total') return mv.total||0;
-  if(key==='total_ot_hours') return mv.ot_hours||0;
-  return 0;
+  const months = S.activeMonths;
+  if(!months || months.length === MONTHS.length) return d[key]||0;
+  if(!d.monthly) return 0;
+  return months.reduce((sum, m) => {
+    const mv = d.monthly[m];
+    if(!mv) return sum;
+    if(key==='total_ot_idr') return sum + (mv.ot_idr||0);
+    if(key==='total_ins') return sum + (mv.insentif||0);
+    if(key==='grand_total') return sum + (mv.total||0);
+    if(key==='total_ot_hours') return sum + (mv.ot_hours||0);
+    return sum;
+  }, 0);
 }
 
 function filteredAll() {
@@ -503,7 +656,7 @@ function filteredDriver() {
     if(S.site==='all'&&S.dSiteCat!=='all'&&d.site_cat!==S.dSiteCat) return false;
     if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
     if(S.dStatus!=='all') {
-      const activeMonths = S.month==='all' ? MONTHS : [S.month];
+      const activeMonths = S.activeMonths || MONTHS;
       const mOT  = activeMonths.some(m=>(d.monthly?.[m]?.ot_idr||0)>0);
       const mIns = activeMonths.some(m=>(d.monthly?.[m]?.insentif||0)>0);
       if(S.dStatus==='both' && !(mOT && mIns)) return false;
@@ -640,7 +793,7 @@ function setSiteFromSelect(){
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initUI(){
-  // Month selector
+  // Month selector (hidden, legacy)
   const msel=document.getElementById('monthSel');
   msel.innerHTML='<option value="all">Semua Bulan</option>';
   MONTHS.forEach(m=>{
@@ -648,6 +801,21 @@ function initUI(){
     o.value=m; o.textContent=ms(m)+' 2026';
     msel.appendChild(o);
   });
+  // Date range picker - set default min/max based on MONTHS
+  const allYear = 2026;
+  const monthNums = {'January':1,'February':2,'March':3,'April':4,'May':5,'June':6,'July':7,'August':8,'September':9,'October':10,'November':11,'December':12};
+  if(MONTHS.length){
+    const firstM = MONTHS[0], lastM = MONTHS[MONTHS.length-1];
+    const firstIdx = monthNums[firstM]-1, lastIdx = monthNums[lastM]-1;
+    const minDate = new Date(allYear, firstIdx, 1);
+    const maxDate = new Date(allYear, lastIdx+1, 0);
+    const pad = n=>String(n).padStart(2,'0');
+    const toISO = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    document.getElementById('dateFrom').min = toISO(minDate);
+    document.getElementById('dateFrom').max = toISO(maxDate);
+    document.getElementById('dateTo').min   = toISO(minDate);
+    document.getElementById('dateTo').max   = toISO(maxDate);
+  }
 
   // Site selector (topbar)
   const ssel=document.getElementById('siteSel');
@@ -739,7 +907,9 @@ function initUI(){
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll(){
-  S.month=document.getElementById('monthSel').value;
+  // Legacy: sync monthSel jika ada yang trigger langsung
+  const msel = document.getElementById('monthSel');
+  if(msel) S.month = msel.value;
   renderOverview();
   renderDriverTable();
   // Re-render insight jika halaman aktif
@@ -1053,7 +1223,7 @@ function renderInsight() {
   // OT Category aggregation — respects month + status filter
   const catAgg = {};
   const catDrivers = {};
-  const activeMonthsForCat = S.month==='all' ? MONTHS : [S.month];
+  const activeMonthsForCat = S.activeMonths || MONTHS;
   data.forEach(d => {
     // Filter status: cek per bulan aktif
     if (S.dStatus !== 'all') {
@@ -1064,8 +1234,8 @@ function renderInsight() {
       if (S.dStatus==='ins'  && !(!mOT && mIns)) return;
     }
     let src;
-    if (S.month !== 'all') {
-      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.month]) ? d.ot_cats_monthly[S.month] : null;
+    if (S.activeMonths && S.activeMonths.length === 1) {
+      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.activeMonths[0]]) ? d.ot_cats_monthly[S.activeMonths[0]] : null;
     } else {
       src = d.ot_cats || {};
     }
@@ -1279,7 +1449,7 @@ function renderInsight() {
   // OT per BU donut chart
   destroyChart('otBU');
   const buAgg = {};
-  const activeMonthsForBU = S.month==='all' ? MONTHS : [S.month];
+  const activeMonthsForBU = S.activeMonths || MONTHS;
   data.forEach(d => {
     const bu = d.bu || 'Lainnya';
     if (!bu) return;
@@ -1292,8 +1462,8 @@ function renderInsight() {
       if (S.dStatus==='ins'  && !(!mOT && mIns)) return;
     }
     let src;
-    if (S.month !== 'all') {
-      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.month]) ? d.ot_cats_monthly[S.month] : null;
+    if (S.activeMonths && S.activeMonths.length === 1) {
+      src = (d.ot_cats_monthly && d.ot_cats_monthly[S.activeMonths[0]]) ? d.ot_cats_monthly[S.activeMonths[0]] : null;
     } else {
       src = d.ot_cats || {};
     }
@@ -1555,7 +1725,13 @@ function renderNormalDist(data) {
   const vGrand = data.map(d=>dval(d,'grand_total')).filter(v=>v>0).sort((a,b)=>a-b);
   const vOT    = data.map(d=>dval(d,'total_ot_idr')).filter(v=>v>0).sort((a,b)=>a-b);
   const vIns   = data.map(d=>dval(d,'total_ins')).filter(v=>v>0).sort((a,b)=>a-b);
-  buildDistChart('chartNormalDist', vGrand, '#6d28d9', 'statGrandTotal');
+  // Init slider range BEFORE building chart (uses full range)
+  initDistSlider(vGrand);
+  // Apply current slider filter
+  const minV = _distValues[S.distMin] || 0;
+  const maxV = _distValues[S.distMax] || (vGrand[vGrand.length-1]||0);
+  const filteredGrand = vGrand.filter(v => v >= minV && v <= maxV);
+  buildDistChart('chartNormalDist', filteredGrand, '#6d28d9', 'statGrandTotal');
   buildDistChart('chartDistOT',     vOT,    '#3b82f6', 'statOT');
   buildDistChart('chartDistIns',    vIns,   '#22c55e', 'statIns');
 }
