@@ -229,7 +229,7 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
         <div class="tc-title" style="margin:0">⚠️ OT Melebihi Normatif <span style="color:#ef4444">&gt;72 jam/bulan</span></div>
       </div>
-      <div class="tc-sub">Driver yang melebihi batas OT normatif 72 jam dalam satu bulan</div>
+      <div class="tc-sub">Top 10 driver berdasarkan total jam OT melebihi 72 jam/bulan dalam range yang dipilih</div>
       <!-- KPI Cards -->
       <div id="normatifKpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px"></div>
       <!-- Trend charts: stacked + trend line -->
@@ -254,9 +254,8 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
             <th style="width:28px">#</th>
             <th>Nama</th>
             <th>Site</th>
-            <th>Bulan</th>
-            <th class="r">Jam OT</th>
-            <th class="r">Selisih</th>
+            <th class="r">Total Jam OT</th>
+            <th class="r">Bulan Langgar</th>
             <th>Badge</th>
           </tr></thead>
           <tbody id="normatifBody"></tbody>
@@ -1936,26 +1935,41 @@ function renderNormatif(data) {
   });
 
   // Tabel
+  // Aggregasi per driver: jumlah total jam OT + hitung bulan langgar
+  const driverAgg = {};
+  violations.forEach(v => {
+    if (!driverAgg[v.nik]) {
+      driverAgg[v.nik] = { nik: v.nik, name: v.name, site: v.site, bu: v.bu, totalHours: 0, violMonths: [] };
+    }
+    driverAgg[v.nik].totalHours += v.hours;
+    driverAgg[v.nik].violMonths.push(v.month);
+  });
+
+  // Top 10 by totalHours
+  const top10drivers = Object.values(driverAgg)
+    .sort((a,b) => b.totalHours - a.totalHours)
+    .slice(0, 10);
+
   const tbody = document.getElementById('normatifBody');
   if (!tbody) return;
-  tbody.innerHTML = violations.map((v,i) => {
-    const isTop10   = top10niks.has(v.nik);
-    const isRepeat  = repeatDrivers.has(v.nik);
+  tbody.innerHTML = top10drivers.map((d,i) => {
+    const isTop10  = top10niks.has(d.nik);
+    const isRepeat = d.violMonths.length > 1;
+    const monthLabels = d.violMonths.map(m => ms(m)).join(', ');
     const badges = [
       isTop10  ? `<span style="background:#6d28d922;color:#6d28d9;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;margin-right:3px">🏆 Top10</span>` : '',
       isRepeat ? `<span style="background:#f9730022;color:#f97316;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px">🔁 Repeat</span>` : '',
     ].join('');
-    const excessColor = v.excess > 100 ? '#dc2626' : v.excess > 50 ? '#f97316' : '#f59e0b';
+    const hoursColor = d.totalHours > 200 ? '#dc2626' : d.totalHours > 100 ? '#f97316' : '#f59e0b';
     return `<tr>
       <td style="color:#94a3b8">${i+1}</td>
       <td>
-        <div style="font-weight:600;font-size:12px">${v.name}</div>
-        <div style="font-size:10px;color:#94a3b8;font-family:monospace">${v.nik}</div>
+        <div style="font-weight:600;font-size:12px">${d.name}</div>
+        <div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div>
       </td>
-      <td>${siteBadge(v.site)}</td>
-      <td style="font-size:11px;color:#4a5568">${ms(v.month)}</td>
-      <td class="r" style="color:#dc2626;font-weight:700">${v.hours.toFixed(1)} jam</td>
-      <td class="r"><span style="color:${excessColor};font-weight:700">+${v.excess.toFixed(1)} jam</span></td>
+      <td>${siteBadge(d.site)}</td>
+      <td class="r" style="color:${hoursColor};font-weight:700">${d.totalHours.toFixed(1)} jam</td>
+      <td class="r" style="font-size:11px;color:#4a5568">${monthLabels}</td>
       <td>${badges||'<span style="color:#cbd5e1;font-size:10px">—</span>'}</td>
     </tr>`;
   }).join('');
