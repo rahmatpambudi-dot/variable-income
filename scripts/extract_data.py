@@ -163,23 +163,46 @@ def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
     return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
 
+def normalize_date(val):
+    """Parse OT Date ke format YYYY-MM-DD. Return '' jika gagal."""
+    v = str(val).strip()
+    if not v or v in ('None', '-', ''):
+        return ''
+    # YYYY-MM-DD
+    m = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})$', v)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    # DD/MM/YYYY or MM/DD/YYYY — asumsi DD/MM/YYYY (format Indonesia)
+    m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', v)
+    if m:
+        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        if mo > 12:  # swap: MM/DD/YYYY
+            d, mo = mo, d
+        return f"{y}-{mo:02d}-{d:02d}"
+    # DD-MM-YYYY
+    m = re.match(r'^(\d{1,2})-(\d{1,2})-(\d{4})$', v)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    # Coba parse via datetime
+    for fmt in ('%d/%m/%Y','%m/%d/%Y','%Y/%m/%d','%d-%m-%Y','%B %d, %Y','%b %d, %Y'):
+        try:
+            return datetime.strptime(v, fmt).strftime('%Y-%m-%d')
+        except:
+            pass
+    return ''
+
 def normalize_month(m):
-    import re
     m = str(m).strip()
     if m in MONTH_ORDER: return m
-    # handle '5', '05'
     m_stripped = m.lstrip('0') or '0'
     result = MONTH_NUM_MAP.get(m_stripped, MONTH_NUM_MAP.get(m, ''))
     if result: return result
-    # MM/DD/YYYY or M/D/YYYY
     match = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', m)
     if match:
         return MONTH_NUM_MAP.get(match.group(1).lstrip('0') or '0', '')
-    # YYYY-MM-DD
     match = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})$', m)
     if match:
         return MONTH_NUM_MAP.get(match.group(2).lstrip('0') or '0', '')
-    # DD-MM-YYYY
     match = re.match(r'^(\d{1,2})-(\d{1,2})-(\d{4})$', m)
     if match:
         return MONTH_NUM_MAP.get(match.group(2).lstrip('0') or '0', '')
@@ -201,21 +224,17 @@ def col_contains_last(headers, keyword):
     return -1
 
 def get_display_site(location):
-    """Map location name ke display site label"""
     loc_upper = str(location).strip().upper()
     for keywords, label in LOCATION_TO_SITE:
         if any(k in loc_upper for k in keywords):
             return label
-    return location  # fallback ke nama asli
+    return location
 
 def get_site_cat(location, raw_site_cat):
-    """Site category dengan override"""
     loc_upper = str(location).strip().upper()
-    # Cek explicit override dulu
     for key, cat in SITE_CAT_OVERRIDE.items():
         if key.upper() in loc_upper:
             return cat
-    # Rule: nama mengandung HUB tapi bukan NDC/RDC → paksa HUB
     if 'HUB' in loc_upper and raw_site_cat not in ('NDC', 'RDC'):
         return 'HUB'
     return raw_site_cat if raw_site_cat else 'Lainnya'
@@ -223,11 +242,6 @@ def get_site_cat(location, raw_site_cat):
 # ── Extract Insentif ──────────────────────────────────────────────────────────
 
 def extract_insentif(wb_ins):
-    """
-    Baca semua tab insentif.
-    NIK bisa ada di multiple tab (perbantuan) → akumulasi semua.
-    Return: dict NIK → {name, months: {month: idr}}
-    """
     print('\n📥 Extracting Insentif...')
     nik_to_ins = {}
 
@@ -260,7 +274,6 @@ def extract_insentif(wb_ins):
                 if not month or ins <= 0:
                     continue
 
-                # Baca driver (NIK1) DAN kenek (nik2)
                 for c_nik, c_name in [(c_nik1, c_name1), (c_nik2, c_name2)]:
                     nik  = g(c_nik)
                     name = g(c_name)
@@ -285,7 +298,6 @@ def extract_insentif(wb_ins):
             print(f'  [ERROR] {site}: {e}')
 
     print(f'  Total insentif NIKs: {len(nik_to_ins)}')
-    print(f'  Sample NIK insentif (first 10): {list(nik_to_ins.keys())[:10]}')
     return nik_to_ins
 
 # ── Extract OT ────────────────────────────────────────────────────────────────
@@ -306,6 +318,7 @@ def extract_ot(wb_ot):
         'nik'       : col_first(headers, 'Employee ID'),
         'name'      : col_first(headers, 'Employee Name'),
         'month'     : col_last(headers, 'Month'),
+        'ot_date'   : col_first(headers, 'OT Date'),   # ← NEW
         'hours'     : col_contains_last(headers, 'OT Hour Paid'),
         'idr'       : col_contains_last(headers, 'OT (IDR)'),
         'location'  : col_last(headers, 'Location Name'),
@@ -315,9 +328,12 @@ def extract_ot(wb_ot):
         'desc'      : col_first(headers, 'Description'),
     }
     print(f'  Column indices: {ci}')
+    print(f'  OT Date col: {ci["ot_date"]} {"✅" if ci["ot_date"] >= 0 else "❌ NOT FOUND"}')
 
     ot = {}
     skipped = 0
+    date_ok = 0
+    date_fail = 0
 
     for row in all_rows[2:]:
         def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
@@ -332,24 +348,29 @@ def extract_ot(wb_ot):
         month     = normalize_month(g(ci['month']))
         paid_type = g(ci['paid_type'])
         desc      = g(ci['desc'])
+        ot_date   = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
 
         if is_dummy(nik, name) or not nik or not month:
             skipped += 1
             continue
         nik = normalize_nik(nik)
 
+        if ot_date: date_ok += 1
+        else: date_fail += 1
+
         ot_cat = classify_ot(paid_type, desc)
 
         if nik not in ot:
             ot[nik] = {
-                'name'        : name,
-                'location'    : location,
-                'display_site': get_display_site(location),
-                'site_cat'    : get_site_cat(location, site_cat),
-                'bu'          : bu,
-                'months'      : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
-                'ot_cats_total': defaultdict(lambda: {'hours':0.0,'idr':0.0}),
-                'ot_cats_monthly': defaultdict(lambda: defaultdict(lambda: {'hours':0.0,'idr':0.0})),
+                'name'            : name,
+                'location'        : location,
+                'display_site'    : get_display_site(location),
+                'site_cat'        : get_site_cat(location, site_cat),
+                'bu'              : bu,
+                'months'          : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
+                'dates'           : defaultdict(lambda: {'hours':0.0,'idr':0.0}),  # ← NEW
+                'ot_cats_total'   : defaultdict(lambda: {'hours':0.0,'idr':0.0}),
+                'ot_cats_monthly' : defaultdict(lambda: defaultdict(lambda: {'hours':0.0,'idr':0.0})),
             }
 
         ot[nik]['months'][month]['hours'] += hours
@@ -359,8 +380,13 @@ def extract_ot(wb_ot):
         ot[nik]['ot_cats_monthly'][month][ot_cat]['hours'] += hours
         ot[nik]['ot_cats_monthly'][month][ot_cat]['idr']   += idr
 
+        # Simpan per tanggal ← NEW
+        if ot_date:
+            ot[nik]['dates'][ot_date]['hours'] += hours
+            ot[nik]['dates'][ot_date]['idr']   += idr
+
     print(f'  ✅ OT: {len(ot)} drivers, {skipped} rows skipped')
-    print(f'  Sample NIK OT (first 10): {list(ot.keys())[:10]}')
+    print(f'  OT Date parsed: {date_ok} ok, {date_fail} failed')
     return ot
 
 # ── Detect Months ─────────────────────────────────────────────────────────────
@@ -390,7 +416,6 @@ def build_driver_data(nik_to_ins, ot, months):
             location = o['location']
             bu       = o['bu']
         else:
-            # Ins only — pakai mapping dari tab insentif
             ins_tab  = ins['ins_site'] if ins else ''
             name     = ins['name'] if ins else nik
             site     = INS_SITE_DISPLAY.get(ins_tab, ins_tab or '-')
@@ -418,7 +443,16 @@ def build_driver_data(nik_to_ins, ot, months):
             total_ot_idr   += ot_idr
             total_ins      += ins_m
 
-        # OT categories breakdown (total + per month)
+        # OT per tanggal ← NEW
+        dates = {}
+        if o and o.get('dates'):
+            for dt, vals in o['dates'].items():
+                dates[dt] = {
+                    'hours': round(vals['hours'], 2),
+                    'idr'  : round(vals['idr']),
+                }
+
+        # OT categories breakdown
         ot_cats = {}
         ot_cats_monthly = {}
         if o and 'ot_cats_total' in o:
@@ -440,21 +474,22 @@ def build_driver_data(nik_to_ins, ot, months):
                     }
 
         drivers.append({
-            'nik'           : nik,
-            'name'          : name,
-            'site'          : site,
-            'site_cat'      : site_cat,
-            'location'      : location,
-            'bu'            : bu,
-            'has_ot'        : o is not None,
-            'has_ins'       : ins is not None,
-            'monthly'       : monthly,
+            'nik'             : nik,
+            'name'            : name,
+            'site'            : site,
+            'site_cat'        : site_cat,
+            'location'        : location,
+            'bu'              : bu,
+            'has_ot'          : o is not None,
+            'has_ins'         : ins is not None,
+            'monthly'         : monthly,
+            'dates'           : dates,   # ← NEW: {YYYY-MM-DD: {hours, idr}}
             'ot_cats'         : ot_cats,
             'ot_cats_monthly' : ot_cats_monthly,
-            'total_ot_hours': round(total_ot_hours, 2),
-            'total_ot_idr'  : round(total_ot_idr),
-            'total_ins'     : round(total_ins),
-            'grand_total'   : round(total_ot_idr + total_ins),
+            'total_ot_hours'  : round(total_ot_hours, 2),
+            'total_ot_idr'    : round(total_ot_idr),
+            'total_ins'       : round(total_ins),
+            'grand_total'     : round(total_ot_idr + total_ins),
         })
 
     drivers.sort(key=lambda x: -x['grand_total'])
@@ -462,11 +497,7 @@ def build_driver_data(nik_to_ins, ot, months):
     both     = sum(1 for d in drivers if d['has_ot'] and d['has_ins'])
     ot_only  = sum(1 for d in drivers if d['has_ot'] and not d['has_ins'])
     ins_only = sum(1 for d in drivers if not d['has_ot'] and d['has_ins'])
-    # Debug: print ins_only drivers NIK + site
-    ins_only_list = [(d['nik'], d['name'][:20], d['site']) for d in drivers if not d['has_ot'] and d['has_ins']]
-    print(f'  Ins only sample (first 10): {ins_only_list[:10]}')
 
-    # OT Classification summary
     from collections import defaultdict as _dd
     cat_totals = _dd(lambda: {'hours':0.0,'idr':0.0})
     for d in drivers:
@@ -480,15 +511,6 @@ def build_driver_data(nik_to_ins, ot, months):
         print(f'  {cat}: Rp {vals["idr"]:,.0f} ({pct:.1f}%) — {vals["hours"]:.0f} jam')
 
     print(f'\n✅ Total: {len(drivers)} drivers (Both:{both}, OT only:{ot_only}, Ins only:{ins_only})')
-    # Debug per site
-    from collections import Counter
-    site_counts = Counter(d['site'] for d in drivers)
-    ins_per_site = {}
-    for d in drivers:
-        ins_per_site[d['site']] = ins_per_site.get(d['site'], 0) + d['total_ins']
-    print('  Driver per site (top 10):')
-    for s, c in sorted(site_counts.items(), key=lambda x: -x[1])[:10]:
-        print(f'    {s}: {c} drivers, ins=Rp {ins_per_site.get(s,0):,.0f}')
     return drivers
 
 # ── HTML Update ───────────────────────────────────────────────────────────────
