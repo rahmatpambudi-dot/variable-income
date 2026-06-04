@@ -500,7 +500,6 @@ function getMonthDateRange(monthName) {
 function onDateRangeChange() {
   const fromVal = document.getElementById('dateFrom').value;
   const toVal   = document.getElementById('dateTo').value;
-  // Simpan di state untuk dval
   S.dateFrom = fromVal || null;
   S.dateTo   = toVal   || null;
   if(!fromVal && !toVal) {
@@ -511,7 +510,7 @@ function onDateRangeChange() {
   }
   const from = fromVal ? new Date(fromVal) : null;
   const to   = toVal   ? new Date(toVal)   : null;
-  // Find which months overlap with the date range (untuk insentif)
+  // Find which months overlap (untuk insentif fallback)
   const active = MONTHS.filter(m => {
     const r = getMonthDateRange(m);
     if(from && r.end < from) return false;
@@ -633,35 +632,36 @@ const fmtH = h => h>0 ? h.toFixed(1)+' jam' : '-';
 const ms = m => MONTH_ID[m]||m;
 
 function dval(d,key) {
-  // Kalau filter tanggal aktif dan data dates tersedia → pakai dates (akurat per hari)
+  // Filter tanggal aktif → pakai dates/ins_dates (per hari akurat)
   if(S.dateFrom || S.dateTo) {
     const from = S.dateFrom || '0000-00-00';
     const to   = S.dateTo   || '9999-99-99';
-    // OT: dari dates
     if(key==='total_ot_idr' || key==='total_ot_hours') {
       if(!d.dates) return 0;
-      return Object.entries(d.dates).reduce((sum, [dt, v]) => {
-        if(dt >= from && dt <= to) return sum + (key==='total_ot_idr' ? (v.idr||0) : (v.hours||0));
+      return Object.entries(d.dates).reduce((sum,[dt,v]) => {
+        if(dt>=from && dt<=to) return sum+(key==='total_ot_idr'?(v.idr||0):(v.hours||0));
         return sum;
       }, 0);
     }
-    // Insentif: masih per bulan (tidak ada data per hari)
     if(key==='total_ins' || key==='grand_total') {
-      const months = S.activeMonths || MONTHS;
-      const ins = months.reduce((sum, m) => {
-        return sum + ((d.monthly?.[m]?.insentif)||0);
-      }, 0);
+      let ins = 0;
+      if(d.ins_dates && Object.keys(d.ins_dates).length>0) {
+        ins = Object.entries(d.ins_dates).reduce((sum,[dt,v])=>{
+          if(dt>=from && dt<=to) return sum+(v||0); return sum;
+        }, 0);
+      } else {
+        const months = S.activeMonths || MONTHS;
+        ins = months.reduce((sum,m)=>sum+((d.monthly?.[m]?.insentif)||0), 0);
+      }
       if(key==='total_ins') return ins;
-      // grand_total = OT dari dates + insentif dari bulan
-      const ot = !d.dates ? 0 : Object.entries(d.dates).reduce((sum, [dt, v]) => {
-        if(dt >= from && dt <= to) return sum + (v.idr||0);
-        return sum;
+      const ot = !d.dates ? 0 : Object.entries(d.dates).reduce((sum,[dt,v])=>{
+        if(dt>=from && dt<=to) return sum+(v.idr||0); return sum;
       }, 0);
-      return ot + ins;
+      return ot+ins;
     }
     return 0;
   }
-  // Tanpa filter tanggal — pakai monthly seperti biasa
+  // Tanpa filter tanggal — per bulan
   const months = S.activeMonths;
   if(!months || months.length === MONTHS.length) return d[key]||0;
   if(!d.monthly) return 0;

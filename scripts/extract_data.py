@@ -254,25 +254,30 @@ def extract_insentif(wb_ins):
                 continue
 
             headers = all_rows[0]
-            c_nik1  = col_first(headers, 'NIK1')
-            c_name1 = col_first(headers, 'driver')
-            c_nik2  = col_first(headers, 'nik2')
-            c_name2 = col_first(headers, 'kenek1')
-            c_month = col_first(headers, 'Month Rev')
-            c_ins   = col_first(headers, 'Insentif per MPP')
+            c_nik1   = col_first(headers, 'NIK1')
+            c_name1  = col_first(headers, 'driver')
+            c_nik2   = col_first(headers, 'nik2')
+            c_name2  = col_first(headers, 'kenek1')
+            c_month  = col_first(headers, 'Month Rev')
+            c_ins    = col_first(headers, 'Insentif per MPP')
+            c_tgl    = col_first(headers, 'Tanggal')   # ← NEW kolom A
 
             if c_nik1 < 0:
                 print(f'  [WARN] {site}: NIK1 tidak ditemukan')
                 continue
 
             count = 0
+            date_ok = 0
             for row in all_rows[1:]:
                 def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
-                month = normalize_month(g(c_month))
-                ins   = to_num(g(c_ins))
+                month   = normalize_month(g(c_month))
+                ins     = to_num(g(c_ins))
+                tgl     = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← NEW
 
                 if not month or ins <= 0:
                     continue
+                if tgl:
+                    date_ok += 1
 
                 for c_nik, c_name in [(c_nik1, c_name1), (c_nik2, c_name2)]:
                     nik  = g(c_nik)
@@ -284,12 +289,19 @@ def extract_insentif(wb_ins):
                         continue
 
                     if nik not in nik_to_ins:
-                        nik_to_ins[nik] = {'name': name, 'ins_site': site, 'months': defaultdict(float)}
+                        nik_to_ins[nik] = {
+                            'name'    : name,
+                            'ins_site': site,
+                            'months'  : defaultdict(float),
+                            'dates'   : defaultdict(float),  # ← NEW
+                        }
 
                     nik_to_ins[nik]['months'][month] += ins
+                    if tgl:
+                        nik_to_ins[nik]['dates'][tgl] += ins  # ← NEW
                     count += 1
 
-            print(f'  ✅ {site}: {count} rows')
+            print(f'  ✅ {site}: {count} rows, {date_ok} with date')
             if i < len(INSENTIF_SITES)-1: time.sleep(3)
 
         except gspread.exceptions.WorksheetNotFound:
@@ -443,7 +455,7 @@ def build_driver_data(nik_to_ins, ot, months):
             total_ot_idr   += ot_idr
             total_ins      += ins_m
 
-        # OT per tanggal ← NEW
+        # OT per tanggal
         dates = {}
         if o and o.get('dates'):
             for dt, vals in o['dates'].items():
@@ -451,6 +463,12 @@ def build_driver_data(nik_to_ins, ot, months):
                     'hours': round(vals['hours'], 2),
                     'idr'  : round(vals['idr']),
                 }
+
+        # Insentif per tanggal ← NEW
+        ins_dates = {}
+        if ins and ins.get('dates'):
+            for dt, val in ins['dates'].items():
+                ins_dates[dt] = round(val)
 
         # OT categories breakdown
         ot_cats = {}
@@ -483,7 +501,8 @@ def build_driver_data(nik_to_ins, ot, months):
             'has_ot'          : o is not None,
             'has_ins'         : ins is not None,
             'monthly'         : monthly,
-            'dates'           : dates,   # ← NEW: {YYYY-MM-DD: {hours, idr}}
+            'dates'           : dates,      # {YYYY-MM-DD: {hours, idr}}
+            'ins_dates'       : ins_dates,  # {YYYY-MM-DD: idr}
             'ot_cats'         : ot_cats,
             'ot_cats_monthly' : ot_cats_monthly,
             'total_ot_hours'  : round(total_ot_hours, 2),
