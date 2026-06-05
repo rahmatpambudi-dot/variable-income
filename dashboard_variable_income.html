@@ -250,12 +250,13 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       <!-- Tabel -->
       <div class="tbl-wrap">
         <table>
-          <thead><tr>
+          <thead id="normatifThead"><tr>
             <th style="width:28px">#</th>
             <th>Nama</th>
             <th>Site</th>
             <th class="r">Total Jam OT</th>
             <th class="r">Bulan Langgar</th>
+            <th id="normatifMonthCols"></th>
             <th>Badge</th>
           </tr></thead>
           <tbody id="normatifBody"></tbody>
@@ -1780,8 +1781,8 @@ function renderNormatif(data) {
   destroyChart('chartNormatifStack');
   destroyChart('chartNormatifTrend');
 
-  // Kumpulkan pelanggaran: ikut filter bulan aktif
-  const activeMonthsNormatif = S.month === 'all' ? MONTHS : [S.month];
+  // Kumpulkan pelanggaran: ikut filter bulan aktif (support date range)
+  const activeMonthsNormatif = S.activeMonths ? S.activeMonths : (S.month === 'all' ? MONTHS : [S.month]);
   const violations = [];
   data.forEach(d => {
     if (!d.monthly) return;
@@ -1971,19 +1972,48 @@ function renderNormatif(data) {
 
   // Tabel
   // Aggregasi per driver: jumlah total jam OT + hitung bulan langgar
+  // Build allMonthHours: semua bulan di activeMonthsNormatif (bukan hanya yg langgar)
   const driverAgg = {};
   violations.forEach(v => {
     if (!driverAgg[v.nik]) {
-      driverAgg[v.nik] = { nik: v.nik, name: v.name, site: v.site, bu: v.bu, totalHours: 0, violMonths: [] };
+      driverAgg[v.nik] = { nik: v.nik, name: v.name, site: v.site, bu: v.bu, totalHours: 0, violMonths: [], allMonthHours: {} };
     }
     driverAgg[v.nik].totalHours += v.hours;
     driverAgg[v.nik].violMonths.push(v.month);
+    driverAgg[v.nik].allMonthHours[v.month] = v.hours;
+  });
+  // Juga isi allMonthHours untuk bulan yg tidak langgar (jam < 72)
+  Object.values(driverAgg).forEach(d => {
+    activeMonthsNormatif.forEach(m => {
+      if (!(m in d.allMonthHours)) {
+        const mv = data.find(dr => dr.nik === d.nik)?.monthly?.[m];
+        if (mv && mv.ot_hours > 0) d.allMonthHours[m] = mv.ot_hours;
+      }
+    });
   });
 
   // Top 10 by totalHours
   const top10drivers = Object.values(driverAgg)
     .sort((a,b) => b.totalHours - a.totalHours)
     .slice(0, 10);
+
+  // Update thead: inject kolom bulan
+  const monthColsHeader = document.getElementById('normatifMonthCols');
+  if (monthColsHeader) {
+    const tr = monthColsHeader.parentElement;
+    // Hapus kolom bulan lama (jika ada re-render)
+    tr.querySelectorAll('.th-month').forEach(el => el.remove());
+    // Insert sebelum Badge
+    const badgeTh = monthColsHeader.nextElementSibling;
+    activeMonthsNormatif.forEach(m => {
+      const th = document.createElement('th');
+      th.className = 'r th-month';
+      th.style.cssText = 'font-size:10px;min-width:40px';
+      th.textContent = ms(m);
+      tr.insertBefore(th, badgeTh);
+    });
+    monthColsHeader.remove(); // hapus placeholder
+  }
 
   const tbody = document.getElementById('normatifBody');
   if (!tbody) return;
@@ -1996,6 +2026,14 @@ function renderNormatif(data) {
       isRepeat ? `<span style="background:#f9730022;color:#f97316;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px">🔁 Repeat</span>` : '',
     ].join('');
     const hoursColor = d.totalHours > 200 ? '#dc2626' : d.totalHours > 100 ? '#f97316' : '#f59e0b';
+    // Kolom jam OT per bulan
+    const monthCols = activeMonthsNormatif.map(m => {
+      const h = d.allMonthHours[m] || 0;
+      if (h <= 0) return `<td class="r" style="font-size:10px;color:#cbd5e1">—</td>`;
+      const c = h > OT_NORMATIF ? '#ef4444' : '#3b82f6';
+      const bg = h > OT_NORMATIF ? '#fef2f2' : 'transparent';
+      return `<td class="r" style="font-size:10px;color:${c};font-weight:600;background:${bg}">${h.toFixed(0)}j</td>`;
+    }).join('');
     return `<tr>
       <td style="color:#94a3b8">${i+1}</td>
       <td>
@@ -2005,6 +2043,7 @@ function renderNormatif(data) {
       <td>${siteBadge(d.site)}</td>
       <td class="r" style="color:${hoursColor};font-weight:700">${d.totalHours.toFixed(1)} jam</td>
       <td class="r" style="font-size:11px;color:#4a5568">${monthLabels}</td>
+      ${monthCols}
       <td>${badges||'<span style="color:#cbd5e1;font-size:10px">—</span>'}</td>
     </tr>`;
   }).join('');
