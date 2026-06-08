@@ -264,6 +264,47 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       </div>
     </div>
 
+    
+    <!-- OT >18 JAM/MINGGU SECTION -->
+    <div class="tcard" id="weekly18Section" style="margin-top:13px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div class="tc-title" style="margin:0">⏰ OT Melebihi Normatif <span style="color:#f97316">&gt;18 jam/minggu</span></div>
+      </div>
+      <div class="tc-sub">Top 10 driver berdasarkan frekuensi minggu yang OT-nya melebihi 18 jam dalam range yang dipilih</div>
+      <!-- KPI Cards -->
+      <div id="weekly18Kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px"></div>
+      <!-- Charts -->
+      <div class="ch2" style="margin-bottom:12px">
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">Distribusi Driver per Minggu</div>
+          <div class="csub">&lt;18 jam vs &gt;18 jam per minggu</div>
+          <canvas id="chartWeekly18Stack" height="180"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">Trend % Minggu Melebihi 18 Jam</div>
+          <div class="csub">Persentase per minggu kalender</div>
+          <canvas id="chartWeekly18Trend" height="180"></canvas>
+        </div>
+      </div>
+      <!-- Bar chart top offenders -->
+      <div style="margin-bottom:14px"><canvas id="chartWeekly18" height="140"></canvas></div>
+      <!-- Tabel -->
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:28px">#</th>
+            <th>Nama</th>
+            <th>Site</th>
+            <th class="r">Total Jam OT</th>
+            <th class="r">Minggu Langgar</th>
+            <th class="r">Max Jam/Minggu</th>
+            <th>Badge</th>
+          </tr></thead>
+          <tbody id="weekly18Body"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- DRIVER LIST -->
     <div id="pg-driver" class="page">
       <div class="tcard">
@@ -1041,6 +1082,7 @@ function renderOverview(){
 
   // OT Normatif section
   renderNormatif(data);
+  renderWeekly18(data);
 }
 
 // ── CHARTS ────────────────────────────────────────────────────────────────────
@@ -1773,6 +1815,279 @@ function renderNormalDist(data) {
 
 // ── OT NORMATIF CONSTANT (global) ─────────────────────────────────────────
 const OT_NORMATIF = 72;
+
+
+// ── OT >18 JAM/MINGGU ────────────────────────────────────────────────────────
+const OT_WEEKLY = 18;
+
+function getISOWeek(dateStr) {
+  // Returns "YYYY-Www" ISO week string
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay() || 7; // Mon=1, Sun=7
+  d.setDate(d.getDate() + 4 - day);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getFullYear() + '-W' + String(week).padStart(2,'0');
+}
+
+function weekLabel(isoWeek) {
+  // "2026-W05" → "W05 (Feb)"
+  const [yr, wk] = isoWeek.split('-W');
+  // Find monday of that week
+  const jan4 = new Date(parseInt(yr), 0, 4);
+  const dayOfWeek = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (parseInt(wk)-1)*7);
+  const monthShort = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][monday.getMonth()];
+  return 'W' + wk.replace('W','') + ' (' + monthShort + ')';
+}
+
+function renderWeekly18(data) {
+  destroyChart('chartWeekly18');
+  destroyChart('chartWeekly18Stack');
+  destroyChart('chartWeekly18Trend');
+
+  // Build per-driver weekly OT map dari d.dates (daily data)
+  // Filter dates sesuai active date range
+  const from = S.dateFrom ? new Date(S.dateFrom) : null;
+  const to   = S.dateTo   ? new Date(S.dateTo)   : null;
+
+  // Collect all weeks in range
+  const allWeeks = new Set();
+  const driverWeekly = []; // { nik, name, site, bu, weekMap: {week: hours} }
+
+  data.forEach(d => {
+    if (!d.dates) return;
+    const weekMap = {};
+    Object.entries(d.dates).forEach(([dateStr, val]) => {
+      const dt = new Date(dateStr + 'T00:00:00');
+      if (from && dt < from) return;
+      if (to   && dt > to  ) return;
+      const w = getISOWeek(dateStr);
+      weekMap[w] = (weekMap[w] || 0) + (val.hours || 0);
+      allWeeks.add(w);
+    });
+    if (Object.keys(weekMap).length > 0) {
+      driverWeekly.push({ nik: d.nik, name: d.name, site: d.site, bu: d.bu||'-', weekMap });
+    }
+  });
+
+  const sortedWeeks = [...allWeeks].sort();
+
+  // Violations: minggu dengan jam > 18
+  const violations = [];
+  driverWeekly.forEach(d => {
+    Object.entries(d.weekMap).forEach(([week, hours]) => {
+      if (hours > OT_WEEKLY) {
+        violations.push({ nik: d.nik, name: d.name, site: d.site, bu: d.bu, week, hours, excess: hours - OT_WEEKLY });
+      }
+    });
+  });
+  violations.sort((a,b) => b.hours - a.hours);
+
+  const uniqueDrivers = [...new Set(violations.map(v => v.nik))];
+  const countPerDriver = {};
+  violations.forEach(v => { countPerDriver[v.nik] = (countPerDriver[v.nik]||0)+1; });
+  const repeatDrivers = new Set(Object.entries(countPerDriver).filter(([,c])=>c>1).map(([n])=>n));
+
+  // Week terbanyak
+  const weekCount = {};
+  violations.forEach(v => { weekCount[v.week] = (weekCount[v.week]||0)+1; });
+  const topWeek = Object.entries(weekCount).sort((a,b)=>b[1]-a[1])[0];
+
+  // KPI Cards
+  const kpiEl = document.getElementById('weekly18Kpi');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#f97316;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Driver OT &gt;18 Jam/Minggu</div>
+      <div style="font-size:26px;font-weight:700;color:#ea580c;margin-top:4px">${uniqueDrivers.length}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">${violations.length} total kejadian</div>
+    </div>
+    <div style="background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#ca8a04;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Minggu Terbanyak</div>
+      <div style="font-size:22px;font-weight:700;color:#a16207;margin-top:4px">${topWeek ? weekLabel(topWeek[0]) : '-'}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">${topWeek ? topWeek[1]+' driver' : ''}</div>
+    </div>
+    <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#a855f7;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Driver Berulang</div>
+      <div style="font-size:26px;font-weight:700;color:#9333ea;margin-top:4px">${repeatDrivers.size}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">melanggar &gt;1 minggu</div>
+    </div>`;
+
+  // ── Stacked bar per minggu ──────────────────────────────────────────────────
+  {
+    const weekLabels = sortedWeeks.map(w => weekLabel(w));
+    const aboveData = sortedWeeks.map(w =>
+      driverWeekly.filter(d => (d.weekMap[w]||0) > OT_WEEKLY).length
+    );
+    const belowData = sortedWeeks.map(w =>
+      driverWeekly.filter(d => { const h = d.weekMap[w]||0; return h > 0 && h <= OT_WEEKLY; }).length
+    );
+    const zeroData = sortedWeeks.map(w =>
+      driverWeekly.filter(d => (d.weekMap[w]||0) === 0).length
+    );
+
+    charts['chartWeekly18Stack'] = new Chart(document.getElementById('chartWeekly18Stack'), {
+      type: 'bar',
+      data: {
+        labels: weekLabels,
+        datasets: [
+          { label: '>18 jam', data: aboveData, backgroundColor: '#f9730288', borderColor: '#f97302', borderWidth: 1 },
+          { label: '1–18 jam', data: belowData, backgroundColor: '#3b82f688', borderColor: '#3b82f6', borderWidth: 1 },
+          { label: 'Tidak OT', data: zeroData, backgroundColor: '#e2e8f088', borderColor: '#94a3b8', borderWidth: 1 },
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+          y: { stacked: true, grid: { color: '#e4ecf4' }, title: { display: true, text: 'Jumlah Driver', font: { size: 10 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+          datalabels: {
+            display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+            color: '#1a2e45', font: { size: 9, weight: '600' },
+            formatter: v => String(v)
+          },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw} driver` } }
+        }
+      }
+    });
+  }
+
+  // ── Trend line: % driver >18 jam per minggu ─────────────────────────────────
+  {
+    const weekLabels = sortedWeeks.map(w => weekLabel(w));
+    const pctAbove = sortedWeeks.map(w => {
+      const active = driverWeekly.filter(d => (d.weekMap[w]||0) > 0).length;
+      const above  = driverWeekly.filter(d => (d.weekMap[w]||0) > OT_WEEKLY).length;
+      return active > 0 ? Math.round(above / active * 100) : 0;
+    });
+    const countAbove = sortedWeeks.map(w =>
+      driverWeekly.filter(d => (d.weekMap[w]||0) > OT_WEEKLY).length
+    );
+
+    charts['chartWeekly18Trend'] = new Chart(document.getElementById('chartWeekly18Trend'), {
+      type: 'line',
+      data: {
+        labels: weekLabels,
+        datasets: [{
+          label: '% Driver >18 jam/minggu',
+          data: pctAbove,
+          borderColor: '#f97316',
+          backgroundColor: '#f9731622',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#f97316',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0, max: 100,
+            grid: { color: '#e4ecf4' },
+            ticks: { callback: v => v + '%' },
+            title: { display: true, text: '% dari driver yang OT', font: { size: 10 } }
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 } } },
+          datalabels: {
+            display: true,
+            anchor: 'top', align: 'top', offset: 4,
+            color: '#f97316', font: { size: 9, weight: '700' },
+            formatter: (v, ctx) => {
+              const idx = ctx.dataIndex;
+              return [v + '%', '(' + countAbove[idx] + ')'];
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const idx = ctx.dataIndex;
+                return ` ${ctx.raw}% (${countAbove[idx]} driver >18j)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Bar chart top 15 worst weeks ────────────────────────────────────────────
+  const top15 = violations.slice(0, 15);
+  charts['chartWeekly18'] = new Chart(document.getElementById('chartWeekly18'), {
+    type: 'bar',
+    data: {
+      labels: top15.map(v => {
+        const n = v.name.length > 15 ? v.name.substring(0,15)+'…' : v.name;
+        return n + ' (' + weekLabel(v.week) + ')';
+      }),
+      datasets: [
+        { label: 'Jam OT Minggu', data: top15.map(v => v.hours), backgroundColor: '#f9731644', borderColor: '#f97316', borderWidth: 1 },
+        { label: 'Batas (18j)', data: top15.map(() => OT_WEEKLY), type:'line', borderColor:'#f59e0b', borderWidth:2, borderDash:[6,3], pointRadius:0, fill:false, order:0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'bottom', labels:{font:{size:10}} },
+        datalabels: {
+          display: true, anchor:'end', align:'top', font:{size:9,weight:'bold'}, color:'#f97316',
+          formatter: v => v === OT_WEEKLY ? '' : v.toFixed(1)+'j'
+        },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)} jam` } }
+      },
+      scales: {
+        y: { title:{display:true,text:'Jam OT/Minggu',font:{size:10}}, grid:{color:'#e4ecf4'}, suggestedMin:0 },
+        x: { ticks:{font:{size:9},maxRotation:40}, grid:{display:false} }
+      }
+    }
+  });
+
+  // ── Tabel top 10 drivers by violating weeks ──────────────────────────────────
+  const driverAgg18 = {};
+  violations.forEach(v => {
+    if (!driverAgg18[v.nik]) {
+      driverAgg18[v.nik] = { nik: v.nik, name: v.name, site: v.site, bu: v.bu, totalHours: 0, violWeeks: [], maxHours: 0 };
+    }
+    driverAgg18[v.nik].totalHours += v.hours;
+    driverAgg18[v.nik].violWeeks.push(v.week);
+    driverAgg18[v.nik].maxHours = Math.max(driverAgg18[v.nik].maxHours, v.hours);
+  });
+
+  const top10weekly = Object.values(driverAgg18)
+    .sort((a,b) => b.violWeeks.length - a.violWeeks.length || b.totalHours - a.totalHours)
+    .slice(0, 10);
+
+  const tbody = document.getElementById('weekly18Body');
+  if (!tbody) return;
+  tbody.innerHTML = top10weekly.map((d, i) => {
+    const isRepeat = d.violWeeks.length > 1;
+    const weekStr = d.violWeeks.map(w => weekLabel(w)).join(', ');
+    const hoursColor = d.totalHours > 100 ? '#dc2626' : d.totalHours > 50 ? '#f97316' : '#f59e0b';
+    const badges = [
+      isRepeat ? `<span style="background:#f9730022;color:#f97316;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px">🔁 ${d.violWeeks.length}x</span>` : '',
+    ].join('');
+    return `<tr>
+      <td style="color:#94a3b8">${i+1}</td>
+      <td>
+        <div style="font-weight:600;font-size:12px">${d.name}</div>
+        <div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div>
+      </td>
+      <td>${siteBadge(d.site)}</td>
+      <td class="r" style="color:${hoursColor};font-weight:700">${d.totalHours.toFixed(1)} jam</td>
+      <td class="r" style="font-size:11px;color:#4a5568">${weekStr}</td>
+      <td class="r" style="font-size:11px;color:#f97316;font-weight:600">${d.maxHours.toFixed(1)} jam</td>
+      <td>${badges||'<span style="color:#cbd5e1;font-size:10px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
 
 // ── OT NORMATIF (>72 jam/bulan) ───────────────────────────────────────────
 
