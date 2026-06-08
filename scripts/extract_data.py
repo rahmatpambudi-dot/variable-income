@@ -272,7 +272,26 @@ def extract_insentif(wb_ins):
                 def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
                 month   = normalize_month(g(c_month))
                 ins     = to_num(g(c_ins))
-                tgl     = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← NEW
+                tgl_raw = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← raw parse
+
+                # Validate tgl against Month Rev — fallback ke YYYY-MM-01 jika beda bulan
+                tgl = ''
+                if month and tgl_raw:
+                    expected_month_num = MONTH_ORDER.index(month) + 1
+                    try:
+                        parsed_month_num = int(tgl_raw[5:7])
+                        if parsed_month_num == expected_month_num:
+                            tgl = tgl_raw  # valid
+                        else:
+                            # Fallback: pakai tanggal 1 dari bulan yang sesuai Month Rev
+                            parsed_year = tgl_raw[:4]
+                            tgl = f"{parsed_year}-{expected_month_num:02d}-01"
+                    except:
+                        tgl = ''
+                elif month and not tgl_raw:
+                    # Tidak ada kolom Tanggal, derive dari Month Rev
+                    expected_month_num = MONTH_ORDER.index(month) + 1
+                    tgl = f"2026-{expected_month_num:02d}-01"
 
                 if not month or ins <= 0:
                     continue
