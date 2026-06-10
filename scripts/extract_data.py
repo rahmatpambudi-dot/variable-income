@@ -274,13 +274,16 @@ def extract_insentif(wb_ins):
                 ins     = to_num(g(c_ins))
                 tgl_raw = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← raw parse
 
-                # Validate tgl: paksa tahun=2026, bulan sesuai Month Rev
+                # Validate tgl: bulan harus match Month Rev, kalau tidak → fallback YYYY-MM-01
                 tgl = ''
                 if month and tgl_raw:
                     expected_month_num = MONTH_ORDER.index(month) + 1
                     try:
-                        parsed_day = tgl_raw[8:10]
-                        tgl = f"2026-{expected_month_num:02d}-{parsed_day}"
+                        parsed_month_num = int(tgl_raw[5:7])
+                        if parsed_month_num == expected_month_num:
+                            tgl = tgl_raw  # valid
+                        else:
+                            tgl = f"{tgl_raw[:4]}-{expected_month_num:02d}-01"
                     except:
                         tgl = ''
                 elif month and not tgl_raw:
@@ -375,13 +378,16 @@ def extract_ot(wb_ot):
         desc      = g(ci['desc'])
         ot_date_raw = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
 
-        # Validate OT Date: paksa tahun=2026, bulan harus sesuai Month Rev
+        # Validate OT Date: bulan harus match Month Rev, kalau tidak → fallback YYYY-MM-01
         ot_date = ''
         if month and ot_date_raw:
             expected_m = MONTH_ORDER.index(month) + 1
             try:
-                parsed_day = ot_date_raw[8:10]
-                ot_date = f"2026-{expected_m:02d}-{parsed_day}"
+                parsed_m   = int(ot_date_raw[5:7])
+                if parsed_m == expected_m:
+                    ot_date = ot_date_raw  # valid, pakai apa adanya
+                else:
+                    ot_date = f"{ot_date_raw[:4]}-{expected_m:02d}-01"
             except:
                 ot_date = ''
         elif month and not ot_date_raw:
