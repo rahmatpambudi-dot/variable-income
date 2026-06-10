@@ -274,22 +274,16 @@ def extract_insentif(wb_ins):
                 ins     = to_num(g(c_ins))
                 tgl_raw = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← raw parse
 
-                # Validate tgl against Month Rev — fallback ke YYYY-MM-01 jika beda bulan
+                # Validate tgl: paksa tahun=2026, bulan sesuai Month Rev
                 tgl = ''
                 if month and tgl_raw:
                     expected_month_num = MONTH_ORDER.index(month) + 1
                     try:
-                        parsed_month_num = int(tgl_raw[5:7])
-                        if parsed_month_num == expected_month_num:
-                            tgl = tgl_raw  # valid
-                        else:
-                            # Fallback: pakai tanggal 1 dari bulan yang sesuai Month Rev
-                            parsed_year = tgl_raw[:4]
-                            tgl = f"{parsed_year}-{expected_month_num:02d}-01"
+                        parsed_day = tgl_raw[8:10]
+                        tgl = f"2026-{expected_month_num:02d}-{parsed_day}"
                     except:
                         tgl = ''
                 elif month and not tgl_raw:
-                    # Tidak ada kolom Tanggal, derive dari Month Rev
                     expected_month_num = MONTH_ORDER.index(month) + 1
                     tgl = f"2026-{expected_month_num:02d}-01"
 
@@ -381,16 +375,13 @@ def extract_ot(wb_ot):
         desc      = g(ci['desc'])
         ot_date_raw = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
 
-        # Validate OT Date month vs Month Rev — fallback ke YYYY-MM-01 jika beda bulan
+        # Validate OT Date: paksa tahun=2026, bulan harus sesuai Month Rev
         ot_date = ''
         if month and ot_date_raw:
             expected_m = MONTH_ORDER.index(month) + 1
             try:
-                parsed_m = int(ot_date_raw[5:7])
-                if parsed_m == expected_m:
-                    ot_date = ot_date_raw
-                else:
-                    ot_date = f"{ot_date_raw[:4]}-{expected_m:02d}-01"
+                parsed_day = ot_date_raw[8:10]
+                ot_date = f"2026-{expected_m:02d}-{parsed_day}"
             except:
                 ot_date = ''
         elif month and not ot_date_raw:
