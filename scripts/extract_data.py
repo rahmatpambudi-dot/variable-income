@@ -379,7 +379,23 @@ def extract_ot(wb_ot):
         month     = normalize_month(g(ci['month']))
         paid_type = g(ci['paid_type'])
         desc      = g(ci['desc'])
-        ot_date   = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
+        ot_date_raw = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
+
+        # Validate OT Date month vs Month Rev — fallback ke YYYY-MM-01 jika beda bulan
+        ot_date = ''
+        if month and ot_date_raw:
+            expected_m = MONTH_ORDER.index(month) + 1
+            try:
+                parsed_m = int(ot_date_raw[5:7])
+                if parsed_m == expected_m:
+                    ot_date = ot_date_raw
+                else:
+                    ot_date = f"{ot_date_raw[:4]}-{expected_m:02d}-01"
+            except:
+                ot_date = ''
+        elif month and not ot_date_raw:
+            expected_m = MONTH_ORDER.index(month) + 1
+            ot_date = f"2026-{expected_m:02d}-01"
 
         if is_dummy(nik, name) or not nik or not month:
             skipped += 1
