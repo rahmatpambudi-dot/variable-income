@@ -60,7 +60,11 @@ html,body{height:100%;overflow:hidden}
 .chip.time{color:#22c55e;border-color:#86efac;background:#f0fdf4;font-weight:600}
 .rbtn{padding:5px 10px;border:1px solid #c2d0e5;border-radius:7px;background:#fff;font-size:12px;color:#4a5568;cursor:pointer}
 .rbtn:hover{background:#e4edf8}
-.date-range-wrap{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #c2d0e5;border-radius:7px;padding:3px 8px}
+.fm-opt{display:block;width:100%;padding:6px 14px;font-size:11px;color:#374151;background:none;border:none;text-align:left;cursor:pointer;white-space:nowrap;transition:background .1s}
+    .fm-opt:hover{background:#f3f4f6}
+    .fm-opt.active{background:#ede9fe;color:#6d28d9;font-weight:600}
+    #btnFM.active{background:#8b5cf6;color:#fff}
+    .date-range-wrap{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #c2d0e5;border-radius:7px;padding:3px 8px}
 .date-range-wrap label{font-size:10px;color:#7a94b0;white-space:nowrap}
 .date-range-wrap input[type=date]{border:none;outline:none;font-size:11px;color:#1a2e45;background:transparent;cursor:pointer;padding:1px 2px;width:110px}
 .date-range-wrap input[type=date]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
@@ -166,6 +170,14 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
   <div class="topbar">
     <div class="pg-title" id="pgTitle">Overview</div>
     <div class="chips">
+      <div id="fmWrap" style="position:relative;display:inline-flex;align-items:center">
+        <button id="btnFM" onclick="toggleFMDropdown()"
+          style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:12px;border:1.5px solid #8b5cf6;background:#fff;color:#8b5cf6;cursor:pointer;transition:all .15s;white-space:nowrap">
+          &#128197; FM ▾
+        </button>
+        <div id="fmDropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid #c2d0e5;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:999;min-width:130px;padding:6px 0">
+        </div>
+      </div>
       <div class="date-range-wrap">
         <label>Dari</label>
         <input type="date" id="dateFrom" onchange="onDateRangeChange()">
@@ -585,7 +597,10 @@ function clearDateRange() {
   S.dateFrom = null;
   S.dateTo   = null;
   S.month = 'all';
+  S.activeFM = 'all';
   S.dPage = 1;
+  const btnFM = document.getElementById('btnFM');
+  if (btnFM) { btnFM.classList.remove('active'); btnFM.innerHTML = '&#128197; FM &#9662;'; }
   updateActiveMonthChip();
   renderAll();
 }
@@ -1027,6 +1042,79 @@ function initUI(){
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
+function populateFMDropdown() {
+  const dd = document.getElementById('fmDropdown');
+  if (!dd || dd.children.length) return; // already populated
+  // "Semua" option
+  const allOpt = document.createElement('button');
+  allOpt.className = 'fm-opt';
+  allOpt.dataset.month = 'all';
+  allOpt.textContent = 'Semua Bulan';
+  allOpt.onclick = () => selectFM('all');
+  dd.appendChild(allOpt);
+  // Divider
+  const div = document.createElement('div');
+  div.style.cssText = 'border-top:1px solid #e5e7eb;margin:4px 0';
+  dd.appendChild(div);
+  // Month options
+  MONTHS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'fm-opt';
+    btn.dataset.month = m;
+    btn.textContent = MONTH_ID[m] || m;
+    btn.onclick = () => selectFM(m);
+    dd.appendChild(btn);
+  });
+}
+
+function toggleFMDropdown() {
+  populateFMDropdown();
+  const dd = document.getElementById('fmDropdown');
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Mark active bulan
+    dd.querySelectorAll('.fm-opt').forEach(b => {
+      b.classList.toggle('active', b.dataset.month === (S.activeFM || 'all'));
+    });
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', function closeFM(e) {
+        if (!document.getElementById('fmWrap').contains(e.target)) {
+          dd.style.display = 'none';
+          document.removeEventListener('click', closeFM);
+        }
+      });
+    }, 0);
+  }
+}
+
+function selectFM(month) {
+  document.getElementById('fmDropdown').style.display = 'none';
+  S.activeFM = month;
+
+  if (month === 'all') {
+    // Reset semua filter date
+    clearDateRange();
+    document.getElementById('btnFM').classList.remove('active');
+    document.getElementById('btnFM').innerHTML = '&#128197; FM &#9662;';
+    return;
+  }
+
+  // Set dateFrom & dateTo ke first/last day bulan ini (akurat)
+  const r = getMonthDateRange(month);
+  const pad = n => String(n).padStart(2,'0');
+  const fromStr = `${r.start.getFullYear()}-${pad(r.start.getMonth()+1)}-${pad(r.start.getDate())}`;
+  const toStr   = `${r.end.getFullYear()}-${pad(r.end.getMonth()+1)}-${pad(r.end.getDate())}`;
+
+  document.getElementById('dateFrom').value = fromStr;
+  document.getElementById('dateTo').value   = toStr;
+  document.getElementById('btnFM').classList.add('active');
+  document.getElementById('btnFM').innerHTML = '&#128197; ' + (MONTH_ID[month]||month) + ' &#9662;';
+
+  onDateRangeChange();
+}
+
 function updateCatChip() {
   const chip = document.getElementById('catFilterChip');
   if (!chip) return;
