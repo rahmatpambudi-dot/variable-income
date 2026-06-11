@@ -1984,23 +1984,27 @@ function buildDistChart(canvasId, values, color, statElId) {
   const std  = Math.sqrt(values.reduce((s,v)=>s+(v-mean)**2,0)/values.length);
   const median = values.slice().sort((a,b)=>a-b)[Math.floor(values.length/2)];
 
-  // Bucket into 15 bins with IDR labels
-  const min=values[0], max=values[values.length-1];
-  const bins=15, binSize=(max-min)/bins;
-  const buckets=Array(bins).fill(0);
+  // Fixed 500K bin size
+  const BIN = 500000;
+  const minBin = Math.floor(values[0]/BIN)*BIN;
+  const maxBin = Math.ceil(values[values.length-1]/BIN)*BIN;
+  const bins   = Math.max(1, Math.ceil((maxBin-minBin)/BIN));
+  const binSize = BIN;
+  const buckets = Array(bins).fill(0);
   values.forEach(v=>{
-    const i=Math.min(Math.floor((v-min)/binSize),bins-1);
+    const i=Math.min(Math.floor((v-minBin)/BIN), bins-1);
     buckets[i]++;
   });
   const labels=buckets.map((_,i)=>{
-    const v=min+i*binSize;
-    return v>=1000000000?`${(v/1000000000).toFixed(1)}M`:v>=1000000?`${(v/1000000).toFixed(0)}Jt`:v>=1000?`${(v/1000).toFixed(0)}K`:'0';
+    const v=minBin+i*BIN;
+    return v>=1000000000?`${(v/1000000000).toFixed(1)}M`:v>=1000000?`${(v/1000000).toFixed(1)}Jt`:v>=1000?`${(v/1000).toFixed(0)}K`:'0';
   });
+  const min=minBin;
 
   // Normal curve scaled to bar heights
   const normalCurve=Array(bins).fill(0).map((_,i)=>{
-    const x=min+(i+0.5)*binSize;
-    return std>0?(values.length*binSize/(std*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*((x-mean)/std)**2):0;
+    const x=minBin+(i+0.5)*BIN;
+    return std>0?(values.length*BIN/(std*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*((x-mean)/std)**2):0;
   });
 
   // Stat legend
