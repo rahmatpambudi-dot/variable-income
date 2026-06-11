@@ -24,6 +24,9 @@ html,body{height:100%;overflow:hidden}
 .sb-sub{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px;margin-top:1px}
 .sb-sec{padding:9px 0 2px}
 .sb-lbl{font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.2px;padding:0 14px 4px;font-weight:500}
+    .sb-cat-filter{cursor:pointer;border-radius:4px;padding:3px 6px;margin:-3px -6px;transition:all .15s;}
+    .sb-cat-filter:hover{background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);}
+    .sb-cat-filter.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700;}
 .sb-item{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;color:rgba(255,255,255,.65);border-left:3px solid transparent;transition:all .15s;user-select:none}
 .sb-item:hover{color:#fff;background:rgba(255,255,255,.08)}
 .sb-item.active{color:#fff;background:#4a6ba6;border-left-color:#5aaff0}
@@ -183,6 +186,7 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
         <button id="btnIns" onclick="toggleDataFilter('Ins')"
           style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:12px;border:1.5px solid #22c55e;background:#22c55e;color:#fff;cursor:pointer;transition:all .15s">Insentif</button>
       </div>
+      <div class="chip" id="catFilterChip" style="display:none;background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:600;cursor:pointer" onclick="clearCatFilter()" title="Klik untuk reset"></div>
       <div class="chip" id="activeMonthChip" style="display:none;background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;font-weight:600"></div>
       <div class="chip time" id="clkChip">--:--</div>
       <div class="chip" id="updChip">Update: 10 Jun 2026</div>
@@ -522,6 +526,7 @@ const S={
   dateFrom:null, dateTo:null,
   activeMonths:null,  // null = all months
   showOT:true, showIns:true,
+  siteCat:'all',
   dSiteCat:'all', dBU:'all', dStatus:'all',
   dSort:'grand_total', dDir:-1,
   dPage:1, perPage:25,
@@ -735,6 +740,7 @@ function dval(d,key) {
 
 function filteredAll() {
   return DRIVERS.filter(d=>{
+    if(S.siteCat!=='all'&&d.site_cat!==S.siteCat) return false;
     if(S.site!=='all'&&d.site!==S.site) return false;
     if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
     return true;
@@ -743,6 +749,7 @@ function filteredAll() {
 
 function filteredDriver() {
   return DRIVERS.filter(d=>{
+    if(S.siteCat!=='all'&&d.site_cat!==S.siteCat) return false;
     if(S.site!=='all'&&d.site!==S.site) return false;
     if(S.site==='all'&&S.dSiteCat!=='all'&&d.site_cat!==S.dSiteCat) return false;
     if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
@@ -946,7 +953,30 @@ function initUI(){
     // Category section
     const sec = document.createElement('div');
     sec.className = 'sb-sec';
-    sec.innerHTML = `<div class="sb-lbl">${catLabels[cat]||cat}</div>`;
+    const catLblEl = document.createElement('div');
+    catLblEl.className = 'sb-lbl sb-cat-filter';
+    catLblEl.dataset.cat = cat;
+    catLblEl.textContent = catLabels[cat]||cat;
+    catLblEl.title = `Filter ${catLabels[cat]||cat}`;
+    catLblEl.onclick = (e) => {
+      e.stopPropagation();
+      const isActive = S.siteCat === cat;
+      document.querySelectorAll('.sb-site-item,.sb-bu-item,.sb-item').forEach(i=>i.classList.remove('active'));
+      document.querySelectorAll('.sb-cat-filter').forEach(i=>i.classList.remove('active'));
+      if (isActive) {
+        S.siteCat = 'all'; S.site = 'all'; S.dBU = 'all';
+        const ssel = document.getElementById('siteSel');
+        if(ssel) ssel.value = 'all';
+      } else {
+        S.siteCat = cat; S.site = 'all'; S.dBU = 'all';
+        catLblEl.classList.add('active');
+        const ssel = document.getElementById('siteSel');
+        if(ssel) ssel.value = 'all';
+      }
+      updateCatChip();
+      renderAll();
+    };
+    sec.appendChild(catLblEl);
 
     sites.forEach(site => {
       const bus = [...sitesObj[site]].sort();
@@ -997,6 +1027,25 @@ function initUI(){
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
+function updateCatChip() {
+  const chip = document.getElementById('catFilterChip');
+  if (!chip) return;
+  const catLabelsMap = {NDC:'NDC', HUB:'Hub', RDC:'RDC', SDC:'Satellite', Lainnya:'Lainnya'};
+  if (S.siteCat !== 'all') {
+    chip.textContent = '✕ ' + (catLabelsMap[S.siteCat]||S.siteCat);
+    chip.style.display = '';
+  } else {
+    chip.style.display = 'none';
+  }
+}
+
+function clearCatFilter() {
+  S.siteCat = 'all';
+  document.querySelectorAll('.sb-cat-filter').forEach(i=>i.classList.remove('active'));
+  updateCatChip();
+  renderAll();
+}
+
 function toggleDataFilter(type) {
   if (type === 'OT') {
     S.showOT = !S.showOT;
