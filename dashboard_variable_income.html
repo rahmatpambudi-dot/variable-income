@@ -1340,7 +1340,7 @@ function renderCharts(){
   destroyChart('otTrend');destroyChart('insTrend');destroyChart('hours');destroyChart('dcount');
   const sites=allSites(), data=filteredAll();
   const top5=sites.map(s=>({site:s,tot:data.filter(d=>d.site===s).reduce((a,d)=>a+dval(d,'total_ot_idr'),0)})).sort((a,b)=>b.tot-a.tot).slice(0,5).map(s=>s.site);
-  const insSites=['JBBK','CKP','SDA'].filter(s=>sites.includes(s));
+  const insSites=['Jababeka','Cikupa','Sidoarjo'].filter(s=>sites.includes(s));
   const useRange=!!(S.dateFrom||S.dateTo);
   const dayFrom=S.dateFrom?S.dateFrom.slice(8,10):'01';
   const dayTo  =S.dateTo  ?S.dateTo.slice(8,10)  :'31';
