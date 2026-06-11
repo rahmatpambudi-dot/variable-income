@@ -1157,8 +1157,11 @@ function renderAll(){
   if(msel) S.month = msel.value;
   renderOverview();
   renderDriverTable();
-  // Re-render insight jika halaman aktif
-  if(document.getElementById('pg-insight').classList.contains('active')){
+  // Re-render chart/insight jika halaman aktif
+  if(document.getElementById('pg-chart')?.classList.contains('active')){
+    renderCharts();
+  }
+  if(document.getElementById('pg-insight')?.classList.contains('active')){
     renderInsight();
   }
 }
