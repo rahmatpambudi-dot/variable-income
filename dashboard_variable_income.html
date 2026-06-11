@@ -1172,9 +1172,40 @@ function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];
 function renderMonthlyChart(data){
   destroyChart('monthly');
   const ctx=document.getElementById('chartMonthly');
+  const from = S.dateFrom || '0000-00-00';
+  const to   = S.dateTo   || '9999-99-99';
+
+  function monthOT(m) {
+    return data.reduce((sum,d) => {
+      if (S.dateFrom || S.dateTo) {
+        if (!d.dates) return sum;
+        return sum + Object.entries(d.dates).reduce((s,[dt,v]) => {
+          const mo = new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
+          return mo===m && dt>=from && dt<=to ? s+(v.idr||0) : s;
+        }, 0);
+      }
+      return sum + (d.monthly[m]?.ot_idr||0);
+    }, 0);
+  }
+
+  function monthIns(m) {
+    return data.reduce((sum,d) => {
+      if (S.dateFrom || S.dateTo) {
+        if (d.ins_dates && Object.keys(d.ins_dates).length) {
+          return sum + Object.entries(d.ins_dates).reduce((s,[dt,v]) => {
+            const mo = new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
+            return mo===m && dt>=from && dt<=to ? s+(v||0) : s;
+          }, 0);
+        }
+        return sum + (d.monthly[m]?.insentif||0);
+      }
+      return sum + (d.monthly[m]?.insentif||0);
+    }, 0);
+  }
+
   const datasets=[];
-  if(S.showOT)  datasets.push({label:'OT',  data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.ot_idr||0),0)),  backgroundColor:'#3b82f688', borderColor:'#3b82f6', borderWidth:1});
-  if(S.showIns) datasets.push({label:'Insentif',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.insentif||0),0)),backgroundColor:'#22c55e88', borderColor:'#22c55e', borderWidth:1});
+  if(S.showOT)  datasets.push({label:'OT',  data:MONTHS.map(m=>monthOT(m)),  backgroundColor:'#3b82f688', borderColor:'#3b82f6', borderWidth:1});
+  if(S.showIns) datasets.push({label:'Insentif',data:MONTHS.map(m=>monthIns(m)),backgroundColor:'#22c55e88', borderColor:'#22c55e', borderWidth:1});
   charts['monthly']=new Chart(ctx,{
     type:'bar',
     data:{labels:MONTHS.map(ms),datasets},
@@ -1226,88 +1257,16 @@ function renderSiteChart(siteStats){
 function renderCharts(){
   destroyChart('otTrend');destroyChart('insTrend');destroyChart('hours');destroyChart('dcount');
   const sites=allSites();
-  const data=filteredAll();
-  const top5=sites.map(s=>({site:s,tot:data.filter(d=>d.site===s).reduce((a,d)=>a+dval(d,'total_ot_idr'),0)}))
+  const top5=sites.map(s=>({site:s,tot:DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+d.total_ot_idr,0)}))
     .sort((a,b)=>b.tot-a.tot).slice(0,5).map(s=>s.site);
   const insSites=['JBBK','CKP','SDA'].filter(s=>sites.includes(s));
 
-  // Helper: OT IDR per site per bulan, respek date range
-  function siteMonthOT(site, m) {
-    const from = S.dateFrom || '0000-00-00';
-    const to   = S.dateTo   || '9999-99-99';
-    return data.filter(d=>d.site===site).reduce((sum,d)=>{
-      if (S.dateFrom || S.dateTo) {
-        if (!d.dates) return sum;
-        return sum + Object.entries(d.dates).reduce((s,[dt,v])=>{
-          const mo = new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
-          if (mo!==m) return s;
-          return dt>=from && dt<=to ? s+(v.idr||0) : s;
-        },0);
-      }
-      return sum + (d.monthly[m]?.ot_idr||0);
-    },0);
-  }
-
-  // Helper: Insentif per site per bulan, respek date range
-  function siteMonthIns(site, m) {
-    const from = S.dateFrom || '0000-00-00';
-    const to   = S.dateTo   || '9999-99-99';
-    return data.filter(d=>d.site===site).reduce((sum,d)=>{
-      if (S.dateFrom || S.dateTo) {
-        if (!d.ins_dates) return sum + (d.monthly[m]?.insentif||0);
-        return sum + Object.entries(d.ins_dates).reduce((s,[dt,v])=>{
-          const mo = new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
-          if (mo!==m) return s;
-          return dt>=from && dt<=to ? s+(v||0) : s;
-        },0);
-      }
-      return sum + (d.monthly[m]?.insentif||0);
-    },0);
-  }
-
-  // Helper: OT hours per site per bulan, respek date range
-  function siteMonthHours(site, m) {
-    const from = S.dateFrom || '0000-00-00';
-    const to   = S.dateTo   || '9999-99-99';
-    return data.filter(d=>d.site===site).reduce((sum,d)=>{
-      if (S.dateFrom || S.dateTo) {
-        if (!d.dates) return sum;
-        return sum + Object.entries(d.dates).reduce((s,[dt,v])=>{
-          const mo = new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
-          if (mo!==m) return s;
-          return dt>=from && dt<=to ? s+(v.hours||0) : s;
-        },0);
-      }
-      return sum + (d.monthly[m]?.ot_hours||0);
-    },0);
-  }
-
-  // Helper: driver count per site per bulan, respek date range
-  function siteMonthCount(site, m) {
-    const from = S.dateFrom || '0000-00-00';
-    const to   = S.dateTo   || '9999-99-99';
-    return data.filter(d=>d.site===site).filter(d=>{
-      if (S.dateFrom || S.dateTo) {
-        const hasOT  = S.showOT  && d.dates    && Object.entries(d.dates).some(([dt,v])=>{
-          const mo=new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
-          return mo===m && dt>=from && dt<=to && (v.idr||0)>0;
-        });
-        const hasIns = S.showIns && d.ins_dates && Object.entries(d.ins_dates).some(([dt,v])=>{
-          const mo=new Date(dt+'T00:00:00').toLocaleString('en',{month:'long'});
-          return mo===m && dt>=from && dt<=to && (v||0)>0;
-        });
-        return hasOT || hasIns;
-      }
-      return (S.showOT&&(d.monthly[m]?.ot_idr||0)>0)||(S.showIns&&(d.monthly[m]?.insentif||0)>0);
-    }).length;
-  }
-
-  // OT Trend
+  // OT Trend — hide kalau showOT=false
   if(S.showOT){
     charts['otTrend']=new Chart(document.getElementById('chartOTTrend'),{
       type:'line',
       data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-        label:s, data:MONTHS.map(m=>siteMonthOT(s,m)),
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_idr||0),0)),
         borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
       }))},
       options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
@@ -1317,12 +1276,12 @@ function renderCharts(){
     document.getElementById('chartOTTrend').closest('.ccard').style.display='none';
   }
 
-  // Insentif Trend
+  // Insentif Trend — hide kalau showIns=false
   if(S.showIns){
     charts['insTrend']=new Chart(document.getElementById('chartInsTrend'),{
       type:'line',
       data:{labels:MONTHS.map(ms),datasets:insSites.map((s,i)=>({
-        label:s, data:MONTHS.map(m=>siteMonthIns(s,m)),
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.insentif||0),0)),
         borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
       }))},
       options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
@@ -1332,12 +1291,12 @@ function renderCharts(){
     document.getElementById('chartInsTrend').closest('.ccard').style.display='none';
   }
 
-  // Jam OT
+  // Jam OT — hanya relevan kalau OT aktif
   if(S.showOT){
     charts['hours']=new Chart(document.getElementById('chartHours'),{
       type:'bar',
       data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-        label:s, data:MONTHS.map(m=>siteMonthHours(s,m)),
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_hours||0),0)),
         backgroundColor:PALETTE[i]
       }))},
       options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}}}
@@ -1347,11 +1306,13 @@ function renderCharts(){
     document.getElementById('chartHours').closest('.ccard').style.display='none';
   }
 
-  // Driver count
   charts['dcount']=new Chart(document.getElementById('chartDriverCount'),{
     type:'bar',
     data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-      label:s, data:MONTHS.map(m=>siteMonthCount(s,m)),
+      label:s,
+      data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s&&(
+        (S.showOT&&(d.monthly[m]?.ot_idr||0)>0)||(S.showIns&&(d.monthly[m]?.insentif||0)>0)
+      )).length),
       backgroundColor:PALETTE[i]
     }))},
     options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}}}
