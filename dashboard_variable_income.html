@@ -1262,32 +1262,30 @@ function renderMonthlyChart(data){
   const ctx=document.getElementById('chartMonthly');
   const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
 
+  function isPartialMonth(m){
+    if(!useRange) return false;
+    const r=getMonthDateRange(m);
+    const pad=n=>String(n).padStart(2,'0');
+    const mFrom=`${r.start.getFullYear()}-${pad(r.start.getMonth()+1)}-${pad(r.start.getDate())}`;
+    const mTo=`${r.end.getFullYear()}-${pad(r.end.getMonth()+1)}-${pad(r.end.getDate())}`;
+    return from>mFrom || to<mTo;
+  }
+
   function monthOT(m){
     const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    if(!isPartialMonth(m)) return data.reduce((sum,d)=>sum+(d.monthly[m]?.ot_idr||0),0);
     return data.reduce((sum,d)=>{
-      if(useRange && d.dates){
-        // Bulan fully inside range → pakai monthly; partial → filter per hari
-        const mFrom=`2026-${mm}-01`, mTo=`2026-${mm}-31`;
-        if(mFrom>=from && mTo<=to) return sum+(d.monthly[m]?.ot_idr||0);
-        return sum+Object.entries(d.dates).reduce((s,[dt,v])=>
-          dt.slice(5,7)===mm&&dt>=from&&dt<=to?s+(v.idr||0):s,0);
-      }
-      return sum+(d.monthly[m]?.ot_idr||0);
+      if(!d.dates) return sum;
+      return sum+Object.entries(d.dates).reduce((s,[dt,v])=>dt.slice(5,7)===mm&&dt>=from&&dt<=to?s+(v.idr||0):s,0);
     },0);
   }
 
   function monthIns(m){
     const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    if(!isPartialMonth(m)) return data.reduce((sum,d)=>sum+(d.monthly[m]?.insentif||0),0);
     return data.reduce((sum,d)=>{
-      if(useRange){
-        const mFrom=`2026-${mm}-01`, mTo=`2026-${mm}-31`;
-        if(d.ins_dates&&Object.keys(d.ins_dates).length){
-          if(mFrom>=from&&mTo<=to) return sum+(d.monthly[m]?.insentif||0);
-          return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>
-            dt.slice(5,7)===mm&&dt>=from&&dt<=to?s+(v||0):s,0);
-        }
-        return sum+(d.monthly[m]?.insentif||0);
-      }
+      if(d.ins_dates&&Object.keys(d.ins_dates).length)
+        return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>dt.slice(5,7)===mm&&dt>=from&&dt<=to?s+(v||0):s,0);
       return sum+(d.monthly[m]?.insentif||0);
     },0);
   }
