@@ -1262,12 +1262,17 @@ function renderMonthlyChart(data){
   const ctx=document.getElementById('chartMonthly');
   const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
 
+  // Cek apakah bulan ini terpotong range (overlap tapi tidak full)
   function isPartialMonth(m){
     if(!useRange) return false;
     const r=getMonthDateRange(m);
     const pad=n=>String(n).padStart(2,'0');
     const mFrom=`${r.start.getFullYear()}-${pad(r.start.getMonth()+1)}-${pad(r.start.getDate())}`;
     const mTo=`${r.end.getFullYear()}-${pad(r.end.getMonth()+1)}-${pad(r.end.getDate())}`;
+    // Overlap = range dan bulan ini bersinggungan
+    const overlaps = from<=mTo && to>=mFrom;
+    if(!overlaps) return false; // tidak overlap → tampil full, bukan partial
+    // Partial = overlap tapi range tidak mencakup seluruh bulan
     return from>mFrom || to<mTo;
   }
 
