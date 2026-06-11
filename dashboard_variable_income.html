@@ -1285,18 +1285,23 @@ function renderMonthlyChart(data){
     },0);
   }
 
-  // Hitung semua bulan dulu, lalu filter yang ada datanya
-  const allOT  = MONTHS.map(m=>monthOT(m));
-  const allIns = MONTHS.map(m=>monthIns(m));
+  // Tentukan bulan yang tampil di X axis
+  let idxToShow;
+  if(S.activeFM && S.activeFM!=='all'){
+    // FM aktif → tampil Jan sampai bulan yang dipilih
+    const fmIdx = MONTHS.indexOf(S.activeFM);
+    idxToShow = MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    // Range date atau no filter → tampil bulan yang ada datanya
+    const allOT  = MONTHS.map(m=>monthOT(m));
+    const allIns = MONTHS.map(m=>monthIns(m));
+    const active = MONTHS.map((_,i)=>(allOT[i]||0)+(allIns[i]||0)>0 ? i : -1).filter(i=>i>=0);
+    idxToShow = active.length > 0 ? active : MONTHS.map((_,i)=>i);
+  }
 
-  // Bulan yang tampil: ada nilai OT atau Insentif > 0
-  const activeIdx = MONTHS.map((_,i)=>(allOT[i]||0)+(allIns[i]||0)>0 ? i : -1).filter(i=>i>=0);
-  // Kalau semua 0 (belum ada data sama sekali), tampil semua
-  const idxToShow = activeIdx.length > 0 ? activeIdx : MONTHS.map((_,i)=>i);
-
-  const labels   = idxToShow.map(i=>ms(MONTHS[i]));
-  const otData   = idxToShow.map(i=>allOT[i]);
-  const insData  = idxToShow.map(i=>allIns[i]);
+  const labels  = idxToShow.map(i=>ms(MONTHS[i]));
+  const otData  = idxToShow.map(i=>monthOT(MONTHS[i]));
+  const insData = idxToShow.map(i=>monthIns(MONTHS[i]));
 
   const datasets=[];
   if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
