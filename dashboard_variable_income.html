@@ -177,6 +177,12 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       <select id="siteSel" onchange="setSiteFromSelect()">
         <option value="all">Semua Site</option>
       </select>
+      <div id="dataToggleWrap" style="display:flex;gap:4px;align-items:center">
+        <button id="btnOT" onclick="toggleDataFilter('OT')"
+          style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:12px;border:1.5px solid #3b82f6;background:#3b82f6;color:#fff;cursor:pointer;transition:all .15s">OT</button>
+        <button id="btnIns" onclick="toggleDataFilter('Ins')"
+          style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:12px;border:1.5px solid #22c55e;background:#22c55e;color:#fff;cursor:pointer;transition:all .15s">Insentif</button>
+      </div>
       <div class="chip" id="activeMonthChip" style="display:none;background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;font-weight:600"></div>
       <div class="chip time" id="clkChip">--:--</div>
       <div class="chip" id="updChip">Update: 10 Jun 2026</div>
@@ -515,6 +521,7 @@ const S={
   site:'all', month:'all',
   dateFrom:null, dateTo:null,
   activeMonths:null,  // null = all months
+  showOT:true, showIns:true,
   dSiteCat:'all', dBU:'all', dStatus:'all',
   dSort:'grand_total', dDir:-1,
   dPage:1, perPage:25,
@@ -674,6 +681,14 @@ const fmtH = h => h>0 ? h.toFixed(1)+' jam' : '-';
 const ms = m => MONTH_ID[m]||m;
 
 function dval(d,key) {
+  // Short-circuit berdasarkan data filter toggle
+  if (!S.showOT  && (key==='total_ot_idr' || key==='total_ot_hours')) return 0;
+  if (!S.showIns && key==='total_ins') return 0;
+  if (key==='grand_total') {
+    const ot  = S.showOT  ? dval(d,'total_ot_idr') : 0;
+    const ins = S.showIns ? dval(d,'total_ins')     : 0;
+    return ot + ins;
+  }
   // Filter tanggal aktif → pakai dates/ins_dates (per hari akurat)
   if(S.dateFrom || S.dateTo) {
     const from = S.dateFrom || '0000-00-00';
@@ -685,7 +700,7 @@ function dval(d,key) {
         return sum;
       }, 0);
     }
-    if(key==='total_ins' || key==='grand_total') {
+    if(key==='total_ins') {
       let ins = 0;
       if(d.ins_dates && Object.keys(d.ins_dates).length>0) {
         ins = Object.entries(d.ins_dates).reduce((sum,[dt,v])=>{
@@ -982,6 +997,23 @@ function initUI(){
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
+function toggleDataFilter(type) {
+  if (type === 'OT') {
+    S.showOT = !S.showOT;
+    // Kalau keduanya off, nyalakan yang satu ini
+    if (!S.showOT && !S.showIns) S.showIns = true;
+  } else {
+    S.showIns = !S.showIns;
+    if (!S.showOT && !S.showIns) S.showOT = true;
+  }
+  // Update button styles
+  const btnOT  = document.getElementById('btnOT');
+  const btnIns = document.getElementById('btnIns');
+  if (btnOT)  { btnOT.style.background  = S.showOT  ? '#3b82f6' : '#fff'; btnOT.style.color  = S.showOT  ? '#fff' : '#3b82f6'; }
+  if (btnIns) { btnIns.style.background = S.showIns ? '#22c55e' : '#fff'; btnIns.style.color = S.showIns ? '#fff' : '#22c55e'; }
+  renderAll();
+}
+
 function renderAll(){
   // Legacy: sync monthSel jika ada yang trigger langsung
   const msel = document.getElementById('monthSel');
