@@ -1123,12 +1123,12 @@ function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];
 function renderMonthlyChart(data){
   destroyChart('monthly');
   const ctx=document.getElementById('chartMonthly');
+  const datasets=[];
+  if(S.showOT)  datasets.push({label:'OT',  data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.ot_idr||0),0)),  backgroundColor:'#3b82f6'});
+  if(S.showIns) datasets.push({label:'Insentif',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.insentif||0),0)),backgroundColor:'#22c55e'});
   charts['monthly']=new Chart(ctx,{
     type:'bar',
-    data:{labels:MONTHS.map(ms),datasets:[
-      {label:'OT',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.ot_idr||0),0)),backgroundColor:'#3b82f6'},
-      {label:'Insentif',data:MONTHS.map(m=>data.reduce((s,d)=>s+(d.monthly[m]?.insentif||0),0)),backgroundColor:'#22c55e'},
-    ]},
+    data:{labels:MONTHS.map(ms),datasets},
     options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
   });
 }
@@ -1149,42 +1149,62 @@ function renderSiteChart(siteStats){
 function renderCharts(){
   destroyChart('otTrend');destroyChart('insTrend');destroyChart('hours');destroyChart('dcount');
   const sites=allSites();
-  // Top 5 by OT
   const top5=sites.map(s=>({site:s,tot:DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+d.total_ot_idr,0)}))
     .sort((a,b)=>b.tot-a.tot).slice(0,5).map(s=>s.site);
   const insSites=['JBBK','CKP','SDA'].filter(s=>sites.includes(s));
 
-  charts['otTrend']=new Chart(document.getElementById('chartOTTrend'),{
-    type:'line',
-    data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_idr||0),0)),
-      borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
-    }))},
-    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
-  });
+  // OT Trend — hide kalau showOT=false
+  if(S.showOT){
+    charts['otTrend']=new Chart(document.getElementById('chartOTTrend'),{
+      type:'line',
+      data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_idr||0),0)),
+        borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
+      }))},
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
+    });
+    document.getElementById('chartOTTrend').closest('.ccard').style.display='';
+  } else {
+    document.getElementById('chartOTTrend').closest('.ccard').style.display='none';
+  }
 
-  charts['insTrend']=new Chart(document.getElementById('chartInsTrend'),{
-    type:'line',
-    data:{labels:MONTHS.map(ms),datasets:insSites.map((s,i)=>({
-      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.insentif||0),0)),
-      borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
-    }))},
-    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
-  });
+  // Insentif Trend — hide kalau showIns=false
+  if(S.showIns){
+    charts['insTrend']=new Chart(document.getElementById('chartInsTrend'),{
+      type:'line',
+      data:{labels:MONTHS.map(ms),datasets:insSites.map((s,i)=>({
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.insentif||0),0)),
+        borderColor:PALETTE[i],backgroundColor:PALETTE[i]+'33',tension:.3,fill:false
+      }))},
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{y:{ticks:{callback:function(v){return fmt(v);}}}}}
+    });
+    document.getElementById('chartInsTrend').closest('.ccard').style.display='';
+  } else {
+    document.getElementById('chartInsTrend').closest('.ccard').style.display='none';
+  }
 
-  charts['hours']=new Chart(document.getElementById('chartHours'),{
-    type:'bar',
-    data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_hours||0),0)),
-      backgroundColor:PALETTE[i]
-    }))},
-    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}}}
-  });
+  // Jam OT — hanya relevan kalau OT aktif
+  if(S.showOT){
+    charts['hours']=new Chart(document.getElementById('chartHours'),{
+      type:'bar',
+      data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
+        label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s).reduce((a,d)=>a+(d.monthly[m]?.ot_hours||0),0)),
+        backgroundColor:PALETTE[i]
+      }))},
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}}}
+    });
+    document.getElementById('chartHours').closest('.ccard').style.display='';
+  } else {
+    document.getElementById('chartHours').closest('.ccard').style.display='none';
+  }
 
   charts['dcount']=new Chart(document.getElementById('chartDriverCount'),{
     type:'bar',
     data:{labels:MONTHS.map(ms),datasets:top5.map((s,i)=>({
-      label:s,data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s&&(d.monthly[m]?.ot_idr||d.monthly[m]?.insentif)).length),
+      label:s,
+      data:MONTHS.map(m=>DRIVERS.filter(d=>d.site===s&&(
+        (S.showOT&&(d.monthly[m]?.ot_idr||0)>0)||(S.showIns&&(d.monthly[m]?.insentif||0)>0)
+      )).length),
       backgroundColor:PALETTE[i]
     }))},
     options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}}}
