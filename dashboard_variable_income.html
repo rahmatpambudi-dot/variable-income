@@ -1261,8 +1261,6 @@ function renderMonthlyChart(data){
   destroyChart('monthly');
   const ctx=document.getElementById('chartMonthly');
   const useRange=!!(S.dateFrom||S.dateTo);
-
-  // Ambil day-of-month dari range (01–12 → apply ke semua bulan)
   const dayFrom = S.dateFrom ? S.dateFrom.slice(8,10) : '01';
   const dayTo   = S.dateTo   ? S.dateTo.slice(8,10)   : '31';
 
@@ -1287,10 +1285,23 @@ function renderMonthlyChart(data){
     },0);
   }
 
+  // Hitung semua bulan dulu, lalu filter yang ada datanya
+  const allOT  = MONTHS.map(m=>monthOT(m));
+  const allIns = MONTHS.map(m=>monthIns(m));
+
+  // Bulan yang tampil: ada nilai OT atau Insentif > 0
+  const activeIdx = MONTHS.map((_,i)=>(allOT[i]||0)+(allIns[i]||0)>0 ? i : -1).filter(i=>i>=0);
+  // Kalau semua 0 (belum ada data sama sekali), tampil semua
+  const idxToShow = activeIdx.length > 0 ? activeIdx : MONTHS.map((_,i)=>i);
+
+  const labels   = idxToShow.map(i=>ms(MONTHS[i]));
+  const otData   = idxToShow.map(i=>allOT[i]);
+  const insData  = idxToShow.map(i=>allIns[i]);
+
   const datasets=[];
-  if(S.showOT)  datasets.push({label:'OT',  data:MONTHS.map(m=>monthOT(m)),  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
-  if(S.showIns) datasets.push({label:'Insentif',data:MONTHS.map(m=>monthIns(m)),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
-  charts['monthly']=new Chart(ctx,{type:'bar',data:{labels:MONTHS.map(ms),datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+  if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
+  if(S.showIns) datasets.push({label:'Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
+  charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
 }
 
 function renderSiteChart(siteStats){
