@@ -224,6 +224,15 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
           <canvas id="chartSite" height="180"></canvas>
         </div>
       </div>
+      <div class="ch2">
+        <div class="ccard">
+          <div class="ctitle">Jam OT per Bulan</div>
+          <div class="csub">Total Jam</div>
+          <canvas id="chartMonthlyHours" height="180"></canvas>
+        </div>
+        <div class="ccard" id="chartMonthlyHoursPlaceholder" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">
+        </div>
+      </div>
       <div class="tcard">
         <div class="tc-title">Top 10 Driver</div>
         <div class="tc-sub">Grand Total tertinggi (OT + Insentif)</div>
@@ -1223,6 +1232,7 @@ function renderOverview(){
   }).join('');
 
   renderMonthlyChart(data);
+  renderMonthlyHoursChart(data);
   renderSiteChart(siteStats);
 
   // Top 10 — cek siapa yang ada bulan dengan OT > 72 jam
@@ -1311,6 +1321,64 @@ function renderMonthlyChart(data){
   if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
   if(S.showIns) datasets.push({label:'Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
   charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+}
+
+function renderMonthlyHoursChart(data){
+  destroyChart('monthlyHours');
+  const ctx=document.getElementById('chartMonthlyHours');
+  if(!ctx) return;
+  const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
+  const dayFrom=S.dateFrom?S.dateFrom.slice(8,10):'01';
+  const dayTo  =S.dateTo  ?S.dateTo.slice(8,10)  :'31';
+
+  function monthHours(m){
+    if(!useRange) return data.reduce((sum,d)=>sum+(d.monthly[m]?.ot_hours||0),0);
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    const dFrom=`2026-${mm}-${dayFrom}`, dTo=`2026-${mm}-${dayTo}`;
+    return data.reduce((sum,d)=>{
+      if(!d.dates) return sum;
+      return sum+Object.entries(d.dates).reduce((s,[dt,v])=>dt>=dFrom&&dt<=dTo?s+(v.hours||0):s,0);
+    },0);
+  }
+
+  // X axis: FM → Jan sampai bulan dipilih; range/no filter → bulan yg ada data
+  let idxToShow;
+  if(S.activeFM&&S.activeFM!=='all'){
+    const fmIdx=MONTHS.indexOf(S.activeFM);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    const vals=MONTHS.map(m=>monthHours(m));
+    const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
+    idxToShow=active.length>0?active:MONTHS.map((_,i)=>i);
+  }
+
+  const labels=idxToShow.map(i=>ms(MONTHS[i]));
+  const hoursData=idxToShow.map(i=>Math.round(monthHours(MONTHS[i])*10)/10);
+
+  charts['monthlyHours']=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{
+      label:'Jam OT',
+      data:hoursData,
+      backgroundColor:'#8b5cf688',
+      borderColor:'#8b5cf6',
+      borderWidth:1
+    }]},
+    options:{
+      responsive:true,
+      layout:{padding:{top:24}},
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:10}}},
+        datalabels:{
+          display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'end',align:'end',offset:2,
+          color:'#8b5cf6',font:{size:9,weight:'700'},
+          formatter:v=>v>=1000?(v/1000).toFixed(1)+'rb':v+'j'
+        }
+      },
+      scales:{y:{ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'rb':v},grid:{color:'#e4ecf4'}}}
+    }
+  });
 }
 
 function renderSiteChart(siteStats){
