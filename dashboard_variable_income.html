@@ -538,7 +538,7 @@ const S={
   dateFrom:null, dateTo:null,
   activeMonths:null,  // null = all months
   showOT:true, showIns:true,
-  siteCat:'all',
+  siteCats:[],
   dSiteCat:'all', dBU:'all', dStatus:'all',
   dSort:'grand_total', dDir:-1,
   dPage:1, perPage:25,
@@ -755,7 +755,7 @@ function dval(d,key) {
 
 function filteredAll() {
   return DRIVERS.filter(d=>{
-    if(S.siteCat!=='all'&&d.site_cat!==S.siteCat) return false;
+    if(S.siteCats.length&&!S.siteCats.includes(d.site_cat)) return false;
     if(S.site!=='all'&&d.site!==S.site) return false;
     if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
     return true;
@@ -764,7 +764,7 @@ function filteredAll() {
 
 function filteredDriver() {
   return DRIVERS.filter(d=>{
-    if(S.siteCat!=='all'&&d.site_cat!==S.siteCat) return false;
+    if(S.siteCats.length&&!S.siteCats.includes(d.site_cat)) return false;
     if(S.site!=='all'&&d.site!==S.site) return false;
     if(S.site==='all'&&S.dSiteCat!=='all'&&d.site_cat!==S.dSiteCat) return false;
     if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
@@ -975,16 +975,17 @@ function initUI(){
     catLblEl.title = `Filter ${catLabels[cat]||cat}`;
     catLblEl.onclick = (e) => {
       e.stopPropagation();
-      const isActive = S.siteCat === cat;
-      document.querySelectorAll('.sb-site-item,.sb-bu-item,.sb-item').forEach(i=>i.classList.remove('active'));
-      document.querySelectorAll('.sb-cat-filter').forEach(i=>i.classList.remove('active'));
-      if (isActive) {
-        S.siteCat = 'all'; S.site = 'all'; S.dBU = 'all';
-        const ssel = document.getElementById('siteSel');
-        if(ssel) ssel.value = 'all';
+      const cidx = S.siteCats.indexOf(cat);
+      if(cidx >= 0) {
+        S.siteCats.splice(cidx, 1);
+        catLblEl.classList.remove('active');
       } else {
-        S.siteCat = cat; S.site = 'all'; S.dBU = 'all';
+        S.siteCats.push(cat);
         catLblEl.classList.add('active');
+      }
+      if(S.siteCats.length) {
+        S.site = 'all';
+        document.querySelectorAll('.sb-site-item,.sb-bu-item,.sb-item').forEach(i=>i.classList.remove('active'));
         const ssel = document.getElementById('siteSel');
         if(ssel) ssel.value = 'all';
       }
@@ -1119,8 +1120,8 @@ function updateCatChip() {
   const chip = document.getElementById('catFilterChip');
   if (!chip) return;
   const catLabelsMap = {NDC:'NDC', HUB:'Hub', RDC:'RDC', SDC:'Satellite', Lainnya:'Lainnya'};
-  if (S.siteCat !== 'all') {
-    chip.textContent = '✕ ' + (catLabelsMap[S.siteCat]||S.siteCat);
+  if (S.siteCats.length) {
+    chip.textContent = '✕ ' + S.siteCats.map(c=>catLabelsMap[c]||c).join(' + ');
     chip.style.display = '';
   } else {
     chip.style.display = 'none';
@@ -1128,7 +1129,7 @@ function updateCatChip() {
 }
 
 function clearCatFilter() {
-  S.siteCat = 'all';
+  S.siteCats = [];
   document.querySelectorAll('.sb-cat-filter').forEach(i=>i.classList.remove('active'));
   updateCatChip();
   renderAll();
@@ -1524,9 +1525,7 @@ function setInsightFilter(site, el) {
 
 function renderInsight() {
   // Sinkron dengan filter global (site, bu, bulan)
-  const data = DRIVERS.filter(d=>{
-    if(S.site!=='all'&&d.site!==S.site) return false;
-    if(S.dBU!=='all'&&d.bu!==S.dBU) return false;
+  const data = filteredAll().filter(d=>{
     if(insightSiteFilter!=='all'&&d.site!==insightSiteFilter) return false;
     return true;
   });
