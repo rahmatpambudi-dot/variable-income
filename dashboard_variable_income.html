@@ -230,7 +230,22 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
           <div class="csub">Total Jam</div>
           <canvas id="chartMonthlyHours" height="180"></canvas>
         </div>
-        <div class="ccard" id="chartMonthlyHoursPlaceholder" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">
+        <div class="ccard">
+          <div class="ctitle">Rata-rata Jam OT per Driver</div>
+          <div class="csub">Jam OT dibagi jumlah driver aktif per bulan</div>
+          <canvas id="chartAvgHours" height="180"></canvas>
+        </div>
+      </div>
+      <div class="ch2" style="margin-bottom:13px">
+        <div class="ccard">
+          <div class="ctitle">% Driver yang OT per Bulan</div>
+          <div class="csub">Dari total driver aktif</div>
+          <canvas id="chartPctDriver" height="180"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle">OT Weekday vs Weekend</div>
+          <div class="csub">Total jam per bulan</div>
+          <canvas id="chartWdWe" height="180"></canvas>
         </div>
       </div>
       <div class="tcard">
@@ -1233,6 +1248,9 @@ function renderOverview(){
 
   renderMonthlyChart(data);
   renderMonthlyHoursChart(data);
+  renderAvgHoursChart(data);
+  renderPctDriverChart(data);
+  renderWdWeChart(data);
   renderSiteChart(siteStats);
 
   // Top 10 — cek siapa yang ada bulan dengan OT > 72 jam
@@ -1378,6 +1396,144 @@ function renderMonthlyHoursChart(data){
       },
       scales:{y:{ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'rb':v},grid:{color:'#e4ecf4'}}}
     }
+  });
+}
+
+
+// ── CHART: Rata-rata Jam OT per Driver ───────────────────────────────────────
+function renderAvgHoursChart(data){
+  destroyChart('avgHours');
+  const ctx=document.getElementById('chartAvgHours');
+  if(!ctx) return;
+  const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
+  const dayFrom=S.dateFrom?S.dateFrom.slice(8,10):'01';
+  const dayTo  =S.dateTo  ?S.dateTo.slice(8,10)  :'31';
+
+  function monthAvg(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    let totalHours=0, activeDrivers=0;
+    data.forEach(d=>{
+      let h=0;
+      if(useRange && d.dates){
+        const dF=`2026-${mm}-${dayFrom}`, dT=`2026-${mm}-${dayTo}`;
+        h=Object.entries(d.dates).reduce((s,[dt,v])=>dt>=dF&&dt<=dT?s+(v.hours||0):s,0);
+      } else {
+        h=d.monthly[m]?.ot_hours||0;
+      }
+      if(h>0){ totalHours+=h; activeDrivers++; }
+    });
+    return activeDrivers>0?Math.round(totalHours/activeDrivers*10)/10:0;
+  }
+
+  let idxToShow;
+  if(S.activeFM&&S.activeFM!=='all'){
+    const fmIdx=MONTHS.indexOf(S.activeFM);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    const vals=MONTHS.map(m=>monthAvg(m));
+    const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
+    idxToShow=active.length>0?active:MONTHS.map((_,i)=>i);
+  }
+  const labels=idxToShow.map(i=>ms(MONTHS[i]));
+  const vals=idxToShow.map(i=>monthAvg(MONTHS[i]));
+
+  charts['avgHours']=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Rata-rata Jam OT',data:vals,borderColor:'#8b5cf6',backgroundColor:'#8b5cf622',borderWidth:2.5,pointBackgroundColor:'#8b5cf6',pointRadius:4,fill:true,tension:.3}]},
+    options:{responsive:true,layout:{padding:{top:20}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:true,anchor:'top',align:'top',offset:4,color:'#8b5cf6',font:{size:9,weight:'700'},formatter:v=>v+'j'}},scales:{y:{ticks:{callback:v=>v+'j'},grid:{color:'#e4ecf4'}}}}
+  });
+}
+
+// ── CHART: % Driver yang OT per Bulan ────────────────────────────────────────
+function renderPctDriverChart(data){
+  destroyChart('pctDriver');
+  const ctx=document.getElementById('chartPctDriver');
+  if(!ctx) return;
+  const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
+  const dayFrom=S.dateFrom?S.dateFrom.slice(8,10):'01';
+  const dayTo  =S.dateTo  ?S.dateTo.slice(8,10)  :'31';
+  const totalDrivers=data.length;
+
+  function monthPct(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    const active=data.filter(d=>{
+      if(useRange && d.dates){
+        const dF=`2026-${mm}-${dayFrom}`, dT=`2026-${mm}-${dayTo}`;
+        return Object.entries(d.dates).some(([dt,v])=>dt>=dF&&dt<=dT&&(v.hours||0)>0);
+      }
+      return (d.monthly[m]?.ot_hours||0)>0;
+    }).length;
+    return totalDrivers>0?Math.round(active/totalDrivers*100):0;
+  }
+
+  let idxToShow;
+  if(S.activeFM&&S.activeFM!=='all'){
+    const fmIdx=MONTHS.indexOf(S.activeFM);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    const vals=MONTHS.map(m=>monthPct(m));
+    const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
+    idxToShow=active.length>0?active:MONTHS.map((_,i)=>i);
+  }
+  const labels=idxToShow.map(i=>ms(MONTHS[i]));
+  const vals=idxToShow.map(i=>monthPct(MONTHS[i]));
+
+  charts['pctDriver']=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'% Driver OT',data:vals,backgroundColor:'#06b6d488',borderColor:'#06b6d4',borderWidth:1}]},
+    options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:'#06b6d4',font:{size:9,weight:'700'},formatter:v=>v+'%'}},scales:{y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'#e4ecf4'}}}}
+  });
+}
+
+// ── CHART: OT Weekday vs Weekend ─────────────────────────────────────────────
+function renderWdWeChart(data){
+  destroyChart('wdWe');
+  const ctx=document.getElementById('chartWdWe');
+  if(!ctx) return;
+  const from=S.dateFrom||'0000-00-00', to=S.dateTo||'9999-99-99', useRange=!!(S.dateFrom||S.dateTo);
+  const dayFrom=S.dateFrom?S.dateFrom.slice(8,10):'01';
+  const dayTo  =S.dateTo  ?S.dateTo.slice(8,10)  :'31';
+
+  function monthWdWe(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    let wd=0, we=0;
+    data.forEach(d=>{
+      if(!d.dates) return;
+      Object.entries(d.dates).forEach(([dt,v])=>{
+        if(useRange){
+          const dF=`2026-${mm}-${dayFrom}`, dT=`2026-${mm}-${dayTo}`;
+          if(dt<dF||dt>dT) return;
+        } else {
+          if(dt.slice(5,7)!==mm) return;
+        }
+        const day=new Date(dt+'T00:00:00').getDay(); // 0=Sun,6=Sat
+        if(day===0||day===6) we+=(v.hours||0);
+        else wd+=(v.hours||0);
+      });
+    });
+    return {wd:Math.round(wd*10)/10, we:Math.round(we*10)/10};
+  }
+
+  let idxToShow;
+  if(S.activeFM&&S.activeFM!=='all'){
+    const fmIdx=MONTHS.indexOf(S.activeFM);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    const check=MONTHS.map(m=>{ const r=monthWdWe(m); return r.wd+r.we; });
+    const active=check.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
+    idxToShow=active.length>0?active:MONTHS.map((_,i)=>i);
+  }
+  const labels=idxToShow.map(i=>ms(MONTHS[i]));
+  const wdData=idxToShow.map(i=>monthWdWe(MONTHS[i]).wd);
+  const weData=idxToShow.map(i=>monthWdWe(MONTHS[i]).we);
+
+  charts['wdWe']=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Weekday',data:wdData,backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1},
+      {label:'Weekend',data:weData,backgroundColor:'#f9731688',borderColor:'#f97316',borderWidth:1},
+    ]},
+    options:{responsive:true,layout:{padding:{top:16}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:false}},scales:{x:{stacked:false},y:{ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'rb':v+'j'},grid:{color:'#e4ecf4'}}}}
   });
 }
 
