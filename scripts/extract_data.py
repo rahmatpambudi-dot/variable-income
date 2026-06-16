@@ -111,25 +111,133 @@ SITE_CAT_OVERRIDE = {
 }
 
 # OT Classification
-OT_CATEGORIES = [
-    ('Holiday'  , {'paid_type': ['HOLIDAY']}),
-    ('Langsiran', {'keywords': ['LANGSIRAN']}),
-    ('Project'  , {'keywords': ['PROJECT', 'ARMADA']}),
-    ('Corporate', {'keywords': ['PARKIR', 'CORPORATE']}),
-    ('Delivery' , {'keywords': ['STORE', ' ST ', 'RACKING', 'BELOK']}),
-    ('Lainnya'  , {}),  # catch-all
-]
+# ── OT Category Classification ───────────────────────────────────────────────
+# Urutan penting: cek dari yang paling spesifik ke umum
+
+STORE_BRANDS   = ['AZKO','CHATIME','TGI','ASTORE','ASTOR']
+STORE_KW       = ['STORE','TOKO','DK B','DK-B','ZYLLEM','RACKING',
+                  'SOFT OPENING','GRAND OPENING','OPENING STORE',
+                  'PAMERAN','TOYS','CLOSINGAN','BAZAAR','BAZZAR',
+                  'BACK UP OPERASIONAL STORE','RITTASE STORE']
+CUSTOMER_KW    = ['DO CUSTOMER','DO KE CUSTOMER','ANTAR DO','KIRIM DO',
+                  'MENGIRIM DO','MENGIRIMKAN DO','DELIVERY TO CUST',
+                  'DELIVERY TO CUSTOMER','DELIV TO CUST',
+                  'CUST ','CUSTOMER','TITIK','DELIVERI BARANG',
+                  'KIRIM BARANG CUST','KIRIM BARANG CUSTOMER',
+                  'LEMBUR KIRIM','PENGIRIMAN SESUAI','DROP POINT',
+                  'OD ','CILEGON','PARCEL','TARIK BARANG',
+                  'OVER CAPACITY','TOTAL DEMAN','SUPPORT KIRIM',
+                  'PROJEK CUSTOMER','DO CIKUPA']
+AREA_KW        = ['KARAWANG','TANGGERANG','TANGERANG','CIKARANG','DEPOK',
+                  'CIBITUNG','SATELIT','JAKUT','JAKSEL','JAKTIM','JAKBAR',
+                  'BEKASI','PURWAKARTA','BOGOR','PIK','PLUIT','BAYWALK',
+                  'SOHO','GREENVILE','CIMANGGIS']
 
 def classify_ot(paid_type, description):
-    pt = str(paid_type).strip().upper()
+    pt   = str(paid_type).strip().upper()
     desc = str(description).strip().upper()
-    for cat, rules in OT_CATEGORIES:
-        if 'paid_type' in rules:
-            if any(p in pt for p in rules['paid_type']):
-                return cat
-        if 'keywords' in rules:
-            if any(k in desc for k in rules['keywords']):
-                return cat
+
+    # 1. Holiday
+    if 'HOLIDAY' in pt or any(x in desc for x in ['HOVT','LEBARAN','HARI RAYA','HOLIDAY OT','HOLIDAY OVERTIME']):
+        return 'Holiday'
+
+    # 2. Langsiran
+    if any(x in desc for x in ['LANGSIRAN','LANSIRAN','LANGSIR ']):
+        return 'Langsiran'
+
+    # 3. Bongkar/Muat (pure bongkar tanpa kirim)
+    if any(x in desc for x in ['BONGKAR CONTAINER','RECEIVED BARANG','BONGKARAN']) or 'BONGKAR CONTAINER' in pt:
+        return 'Bongkar/Muat'
+
+    # 4. Stock Opname
+    if any(x in desc for x in ['STOCK OPNAME','OPNAME','STOCK OPNAM']) or 'STOCK OPNAME' in pt:
+        return 'Stock Opname'
+
+    # 5. Physical Check
+    if any(x in desc for x in ['PHYSICAL CHECK','PENGECEKAN ASSET','CEK ASSET',
+                                 'PYISICAL CHEK','PHYICAL CHECK','PHYSICAL CHEK',' PC ']):
+        return 'Physical Check'
+
+    # 6. KIR
+    if desc.strip() == 'KIR' or desc.startswith('KIR '):
+        return 'KIR'
+
+    # 7. Pengiriman Luar Kota
+    if any(x in desc for x in ['KELUAR KOTA','LUAR KOTA']) or 'KELUAR KOTA' in pt:
+        return 'Pengiriman Luar Kota'
+
+    # 8. Perbantuan
+    if 'PERBANTUAN' in desc:
+        return 'Perbantuan'
+
+    # 9. Opening Store
+    if any(x in desc for x in ['SOFT OPENING','GRAND OPENING','OPENING STORE']):
+        return 'Opening Store'
+
+    # 10. Project
+    if any(x in desc for x in ['PROJECT','PROYEK','PROJEK','PROJECK','MOBIL LISTRIK','MARMER']):
+        return 'Project'
+
+    # 13. Parkir
+    if any(x in desc for x in ['PARKIR','CORPORATE','PARKING']):
+        return 'Parkir'
+
+    # 14. Delivery Mix (ada unsur store DAN customer, atau lembur tim HUB)
+    has_store    = any(x in desc for x in STORE_BRANDS + STORE_KW)
+    has_customer = any(x in desc for x in CUSTOMER_KW + AREA_KW)
+    if has_store and has_customer:
+        return 'Delivery Mix'
+    if any(x in desc for x in ['OT TIM DC HUB','OVERTIME TIM','OVERTIME TIM DC HUB',
+                                 'LEMBUR DRIVER DC HUB','LEMBUR DRIVER & ASST DRIVER DC HUB',
+                                 'LEMBURAN DRIVER DC HUB','PERIODE CUT OFF','CUT OFF PERIODE',
+                                 'PERIODE 1','PERIODE 16 J','PERIODE 12 ']):
+        return 'Delivery Mix'
+
+    # 15. Delivery Store
+    if has_store:
+        return 'Delivery Store'
+
+    # 16. Ritase
+    if any(x in desc for x in ['RITASE','RTIASE','RITAASE','RIT 2','RIT2']):
+        return 'Ritase'
+
+    # 17. Delivery Customer
+    if has_customer:
+        return 'Delivery Customer'
+
+    # 18. Ritase typo
+    if any(x in desc for x in ['RIT2','RIT 2','RTIASE','RITAASE','2 RIT','3 RIT','4 RIT']):
+        return 'Ritase'
+
+    # 19. Physical Check singkatan
+    if desc.strip() == 'PC':
+        return 'Physical Check'
+
+    # 20. Support Pengantaran
+    if any(x in desc for x in ['ANTAR JEMPUT KARYAWAN','ANTRVJEMPUT','ANNTAR JEMPUT',
+                                 'ANTR JEMPUT KARYAWAN','JEMPUT KARYAWAN',
+                                 'DEPO + BANDARA','TGR + BANDARA','BANDARA',
+                                 'BCA + ','HO + RUKO','PT KALDEN',
+                                 'ANTAR PAK ','PROCUREMENT','VISIT KE VENDOR',
+                                 'JALUR KE VENDOR','AMBIL BARANG DI VENDOR',
+                                 'ANTAR JEMPUT','JEMPUT YANG LEMBUR']):
+        return 'Support Pengantaran'
+
+    # 21. Delivery Customer lainnya
+    if any(x in desc for x in ['ACC PAK MARCO','OVERTIME ACC',
+                                 'LOADING','MUAT DAN KIRIM','BONGKAR MUAT DAN KIRIM',
+                                 'BONGKAR, MUAT','BONGKAR MUTA','DELIVERY','DELIV',
+                                 'MENGIRIM','PENGIRIMAN','PENGANTARAN','KIRIM']):
+        return 'Delivery Customer'
+
+    # 22. Bongkar/Muat typo
+    if any(x in desc for x in ['BONGKARAN','BONGAKARAN']):
+        return 'Bongkar/Muat'
+
+    # 23. Tidak ada deskripsi
+    if desc == '':
+        return 'Tidak Ada Deskripsi'
+
     return 'Lainnya'
 
 SCOPES = [
