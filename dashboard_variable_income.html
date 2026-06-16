@@ -1771,12 +1771,24 @@ function setDP(p){S.dPage=p;renderDriverTable();}
 
 // ── INSIGHT ───────────────────────────────────────────────────────────────────
 const OT_CAT_COLORS = {
-  'Holiday'  : '#ef4444',
-  'Langsiran': '#3b82f6',
-  'Project'  : '#f59e0b',
-  'Corporate': '#8b5cf6',
-  'Delivery' : '#22c55e',
-  'Lainnya'  : '#94a3b8',
+  'Delivery Customer'   : '#2563eb',
+  'Delivery Mix'        : '#06b6d4',
+  'Delivery Store'      : '#0ea5e9',
+  'Ritase'              : '#8b5cf6',
+  'Langsiran'           : '#3b82f6',
+  'Bongkar/Muat'        : '#f59e0b',
+  'Project'             : '#f97316',
+  'Pengiriman Luar Kota': '#10b981',
+  'Perbantuan'          : '#84cc16',
+  'Holiday'             : '#ef4444',
+  'Parkir'              : '#6366f1',
+  'Physical Check'      : '#ec4899',
+  'KIR'                 : '#14b8a6',
+  'Support Pengantaran' : '#a78bfa',
+  'Opening Store'       : '#fb923c',
+  'Stock Opname'        : '#34d399',
+  'Tidak Ada Deskripsi' : '#cbd5e1',
+  'Lainnya'             : '#94a3b8',
 };
 
 let insightSiteFilter = 'all';
@@ -1841,8 +1853,20 @@ function renderInsight() {
 
   // OT Category donut chart
   destroyChart('otCat');
-  const catOrder = ['Holiday','Langsiran','Project','Corporate','Delivery','Lainnya'];
-  const catLabels = catOrder.filter(c=>catAgg[c]);
+  // Urutan kategori yang diinginkan (prioritas tampil duluan)
+  const catOrder = [
+    'Delivery Customer','Delivery Mix','Delivery Store','Ritase',
+    'Langsiran','Bongkar/Muat','Project','Pengiriman Luar Kota',
+    'Perbantuan','Holiday','Parkir','Physical Check','KIR',
+    'Support Pengantaran','Opening Store','Stock Opname',
+    'Tidak Ada Deskripsi','Lainnya'
+  ];
+  // Ambil semua kategori dari data (termasuk yang tidak ada di catOrder)
+  const allCatsInData = [...new Set(Object.keys(catAgg))];
+  const catLabels = [
+    ...catOrder.filter(c => catAgg[c]),
+    ...allCatsInData.filter(c => !catOrder.includes(c) && catAgg[c])
+  ];
 
   // Center text plugin untuk donut
   const centerTextPlugin = {
