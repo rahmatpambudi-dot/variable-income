@@ -163,8 +163,9 @@ def is_dummy(nik, name=''):
     if str(nik).strip() in DUMMY_NIKS: return True
     return any(kw in str(name).strip().upper() for kw in DUMMY_NAME_KEYWORDS)
 
-def normalize_date(val):
-    """Parse OT Date ke format YYYY-MM-DD. Return '' jika gagal."""
+def normalize_date(val, expected_month_num=None):
+    """Parse OT Date ke format YYYY-MM-DD. Return '' jika gagal.
+    expected_month_num: int 1-12, dipakai untuk resolve ambiguitas M/D vs D/M."""
     v = str(val).strip()
     if not v or v in ('None', '-', ''):
         return ''
@@ -172,12 +173,24 @@ def normalize_date(val):
     m = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})$', v)
     if m:
         return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-    # DD/MM/YYYY or MM/DD/YYYY — asumsi DD/MM/YYYY (format Indonesia)
+    # DD/MM/YYYY or MM/DD/YYYY — ambiguous kalau keduanya <=12
     m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', v)
     if m:
-        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
-        if mo > 12:  # swap: MM/DD/YYYY
-            d, mo = mo, d
+        a, b, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        if a > 12:  # pasti D/M/YYYY
+            d, mo = a, b
+        elif b > 12:  # pasti M/D/YYYY
+            d, mo = b, a
+        elif expected_month_num:
+            # Gunakan Month Rev untuk resolve ambiguitas
+            if b == expected_month_num:
+                d, mo = a, b  # M/D/YYYY: b adalah bulan
+            elif a == expected_month_num:
+                d, mo = b, a  # D/M/YYYY: a adalah bulan (swap)
+            else:
+                d, mo = a, b  # fallback: asumsikan M/D/YYYY (format Google Sheets)
+        else:
+            d, mo = a, b  # fallback: asumsikan M/D/YYYY (format Google Sheets default)
         return f"{y}-{mo:02d}-{d:02d}"
     # DD-MM-YYYY
     m = re.match(r'^(\d{1,2})-(\d{1,2})-(\d{4})$', v)
@@ -272,7 +285,8 @@ def extract_insentif(wb_ins):
                 def g(c): return str(row[c]).strip() if 0<=c<len(row) else ''
                 month   = normalize_month(g(c_month))
                 ins     = to_num(g(c_ins))
-                tgl_raw = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← raw parse
+                expected_m_num2 = MONTH_ORDER.index(month) + 1 if month else None
+                tgl_raw = normalize_date(g(c_tgl), expected_m_num2) if c_tgl >= 0 else ''  # ← raw parse
 
                 # Validate tgl: bulan harus match Month Rev
                 # Kalau tidak match atau kosong → skip (jangan fallback ke -01)
@@ -374,7 +388,8 @@ def extract_ot(wb_ot):
         month     = normalize_month(g(ci['month']))
         paid_type = g(ci['paid_type'])
         desc      = g(ci['desc'])
-        ot_date_raw = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
+        expected_m_num = MONTH_ORDER.index(month) + 1 if month else None
+        ot_date_raw = normalize_date(g(ci['ot_date']), expected_m_num) if ci['ot_date'] >= 0 else ''
 
         # Validate OT Date: bulan harus match Month Rev
         # Kalau tidak match atau kosong → skip (jangan fallback ke -01)
