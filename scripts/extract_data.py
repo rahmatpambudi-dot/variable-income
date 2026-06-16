@@ -274,7 +274,8 @@ def extract_insentif(wb_ins):
                 ins     = to_num(g(c_ins))
                 tgl_raw = normalize_date(g(c_tgl)) if c_tgl >= 0 else ''  # ← raw parse
 
-                # Validate tgl: bulan harus match Month Rev, kalau tidak → fallback YYYY-MM-01
+                # Validate tgl: bulan harus match Month Rev
+                # Kalau tidak match atau kosong → skip (jangan fallback ke -01)
                 tgl = ''
                 if month and tgl_raw:
                     expected_month_num = MONTH_ORDER.index(month) + 1
@@ -282,13 +283,10 @@ def extract_insentif(wb_ins):
                         parsed_month_num = int(tgl_raw[5:7])
                         if parsed_month_num == expected_month_num:
                             tgl = tgl_raw  # valid
-                        else:
-                            tgl = f"{tgl_raw[:4]}-{expected_month_num:02d}-01"
+                        # else: tidak match → skip
                     except:
                         tgl = ''
-                elif month and not tgl_raw:
-                    expected_month_num = MONTH_ORDER.index(month) + 1
-                    tgl = f"2026-{expected_month_num:02d}-01"
+                # elif month and not tgl_raw: skip — tidak ada tanggal → tidak masuk dates
 
                 if not month or ins <= 0:
                     continue
@@ -378,21 +376,19 @@ def extract_ot(wb_ot):
         desc      = g(ci['desc'])
         ot_date_raw = normalize_date(g(ci['ot_date'])) if ci['ot_date'] >= 0 else ''
 
-        # Validate OT Date: bulan harus match Month Rev, kalau tidak → fallback YYYY-MM-01
+        # Validate OT Date: bulan harus match Month Rev
+        # Kalau tidak match atau kosong → skip (jangan fallback ke -01)
         ot_date = ''
         if month and ot_date_raw:
             expected_m = MONTH_ORDER.index(month) + 1
             try:
-                parsed_m   = int(ot_date_raw[5:7])
+                parsed_m = int(ot_date_raw[5:7])
                 if parsed_m == expected_m:
                     ot_date = ot_date_raw  # valid, pakai apa adanya
-                else:
-                    ot_date = f"{ot_date_raw[:4]}-{expected_m:02d}-01"
+                # else: tanggal tidak match bulan → skip, biarkan ot_date = ''
             except:
                 ot_date = ''
-        elif month and not ot_date_raw:
-            expected_m = MONTH_ORDER.index(month) + 1
-            ot_date = f"2026-{expected_m:02d}-01"
+        # elif month and not ot_date_raw: skip — tidak ada tanggal → tidak masuk dates
 
         if is_dummy(nik, name) or not nik or not month:
             skipped += 1
