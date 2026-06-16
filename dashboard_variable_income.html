@@ -351,6 +351,46 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       </div>
     </div>
 
+    <!-- DAILY >4 JAM SECTION -->
+    <div class="tcard" id="daily4Section" style="margin-top:13px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div class="tc-title" style="margin:0">📅 OT Melebihi Normatif <span style="color:#0ea5e9">&gt;4 jam/hari</span></div>
+      </div>
+      <div class="tc-sub">Top 10 driver berdasarkan frekuensi hari yang OT-nya melebihi 4 jam dalam range yang dipilih</div>
+      <!-- KPI Cards -->
+      <div id="daily4Kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px"></div>
+      <!-- Charts -->
+      <div class="ch2" style="margin-bottom:12px">
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">Distribusi Driver per Minggu</div>
+          <div class="csub">&lt;4 jam vs &gt;4 jam per hari (dirangkum per minggu)</div>
+          <canvas id="chartDaily4Stack" height="180"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">Trend % Hari Melebihi 4 Jam</div>
+          <div class="csub">Persentase per minggu kalender</div>
+          <canvas id="chartDaily4Trend" height="180"></canvas>
+        </div>
+      </div>
+      <!-- Bar chart top offenders -->
+      <div style="margin-bottom:14px"><canvas id="chartDaily4" height="140"></canvas></div>
+      <!-- Tabel -->
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:28px">#</th>
+            <th>Nama</th>
+            <th>Site</th>
+            <th class="r">Total Jam OT</th>
+            <th class="r">Hari Langgar</th>
+            <th class="r">Max Jam/Hari</th>
+            <th>Badge</th>
+          </tr></thead>
+          <tbody id="daily4Body"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- DRIVER LIST -->
     <div id="pg-driver" class="page">
       <div class="tcard">
@@ -1284,6 +1324,7 @@ function renderOverview(){
   // OT Normatif section
   renderNormatif(data);
   renderWeekly18(data);
+  renderDaily4(data);
 }
 
 // ── CHARTS ────────────────────────────────────────────────────────────────────
@@ -2561,6 +2602,272 @@ function renderWeekly18(data) {
       <td class="r" style="font-size:11px;color:#f97316;font-weight:600">${d.maxHours.toFixed(1)} jam</td>
       <td>${badges||'<span style="color:#cbd5e1;font-size:10px">—</span>'}</td>
     </tr>`;
+  }).join('');
+}
+
+
+// ── OT DAILY >4 JAM/HARI ─────────────────────────────────────────────────────
+const OT_DAILY = 4;
+
+function renderDaily4(data) {
+  destroyChart('chartDaily4');
+  destroyChart('chartDaily4Stack');
+  destroyChart('chartDaily4Trend');
+
+  const from = S.dateFrom ? new Date(S.dateFrom) : null;
+  const to   = S.dateTo   ? new Date(S.dateTo)   : null;
+
+  const allWeeks = new Set();
+  const driverDaily = [];
+
+  data.forEach(d => {
+    if (!d.dates) return;
+    const dayMap = {};
+    Object.entries(d.dates).forEach(([dateStr, val]) => {
+      const dt = new Date(dateStr + 'T00:00:00');
+      if (from && dt < from) return;
+      if (to   && dt > to  ) return;
+      dayMap[dateStr] = (dayMap[dateStr] || 0) + (val.hours || 0);
+      allWeeks.add(getISOWeek(dateStr));
+    });
+    if (Object.keys(dayMap).length > 0) {
+      driverDaily.push({ nik: d.nik, name: d.name, site: d.site, bu: d.bu||'-', dayMap });
+    }
+  });
+
+  const sortedWeeks = [...allWeeks].sort();
+
+  const violations = [];
+  driverDaily.forEach(d => {
+    Object.entries(d.dayMap).forEach(([dateStr, hours]) => {
+      if (hours > OT_DAILY) {
+        violations.push({ nik: d.nik, name: d.name, site: d.site, bu: d.bu, dateStr, week: getISOWeek(dateStr), hours, excess: hours - OT_DAILY });
+      }
+    });
+  });
+  violations.sort((a,b) => b.hours - a.hours);
+
+  const uniqueDrivers = [...new Set(violations.map(v => v.nik))];
+  const countPerDriver = {};
+  violations.forEach(v => { countPerDriver[v.nik] = (countPerDriver[v.nik]||0)+1; });
+  const repeatDrivers = new Set(Object.entries(countPerDriver).filter(([,c])=>c>1).map(([n])=>n));
+
+  const dayCount = {};
+  violations.forEach(v => { dayCount[v.dateStr] = (dayCount[v.dateStr]||0)+1; });
+  const topDay = Object.entries(dayCount).sort((a,b)=>b[1]-a[1])[0];
+
+  const fmtDate = ds => {
+    const dt = new Date(ds + 'T00:00:00');
+    return dt.toLocaleDateString('id-ID', { day:'2-digit', month:'short' });
+  };
+
+  const kpiEl = document.getElementById('daily4Kpi');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#0ea5e9;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Driver OT &gt;4 Jam/Hari</div>
+      <div style="font-size:26px;font-weight:700;color:#0284c7;margin-top:4px">${uniqueDrivers.length}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">${violations.length} total kejadian</div>
+    </div>
+    <div style="background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#ca8a04;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Hari Terbanyak</div>
+      <div style="font-size:22px;font-weight:700;color:#a16207;margin-top:4px">${topDay ? fmtDate(topDay[0]) : '-'}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">${topDay ? topDay[1]+' driver' : ''}</div>
+    </div>
+    <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#a855f7;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Driver Berulang</div>
+      <div style="font-size:26px;font-weight:700;color:#9333ea;margin-top:4px">${repeatDrivers.size}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">melanggar &gt;1 hari</div>
+    </div>`;
+
+  // Stacked bar per minggu
+  {
+    const weekLabels = sortedWeeks.map(w => weekLabel(w));
+    const aboveData = sortedWeeks.map(w =>
+      driverDaily.filter(d => Object.entries(d.dayMap).some(([ds, h]) => getISOWeek(ds) === w && h > OT_DAILY)).length
+    );
+    const belowData = sortedWeeks.map(w =>
+      driverDaily.filter(d => {
+        const daysInWeek = Object.entries(d.dayMap).filter(([ds]) => getISOWeek(ds) === w);
+        if (daysInWeek.length === 0) return false;
+        return daysInWeek.every(([,h]) => h > 0 && h <= OT_DAILY);
+      }).length
+    );
+    const zeroData = sortedWeeks.map(w =>
+      driverDaily.filter(d => Object.entries(d.dayMap).filter(([ds]) => getISOWeek(ds) === w).length === 0).length
+    );
+
+    charts['chartDaily4Stack'] = new Chart(document.getElementById('chartDaily4Stack'), {
+      type: 'bar',
+      data: {
+        labels: weekLabels,
+        datasets: [
+          { label: '>4 jam/hari', data: aboveData, backgroundColor: '#0ea5e988', borderColor: '#0ea5e9', borderWidth: 1 },
+          { label: '1-4 jam', data: belowData, backgroundColor: '#3b82f688', borderColor: '#3b82f6', borderWidth: 1 },
+          { label: 'Tidak OT', data: zeroData, backgroundColor: '#e2e8f088', borderColor: '#94a3b8', borderWidth: 1 },
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+          y: { stacked: true, grid: { color: '#e4ecf4' }, title: { display: true, text: 'Jumlah Driver', font: { size: 10 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+          datalabels: {
+            display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+            color: '#1a2e45', font: { size: 9, weight: '600' },
+            formatter: v => String(v)
+          },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw} driver` } }
+        }
+      }
+    });
+  }
+
+  // Trend line
+  {
+    const weekLabels = sortedWeeks.map(w => weekLabel(w));
+    const pctAbove = sortedWeeks.map(w => {
+      let totalDays = 0, aboveDays = 0;
+      driverDaily.forEach(d => {
+        Object.entries(d.dayMap).forEach(([ds, h]) => {
+          if (getISOWeek(ds) === w && h > 0) {
+            totalDays++;
+            if (h > OT_DAILY) aboveDays++;
+          }
+        });
+      });
+      return totalDays > 0 ? Math.round(aboveDays / totalDays * 100) : 0;
+    });
+    const countAboveDays = sortedWeeks.map(w => {
+      let c = 0;
+      driverDaily.forEach(d => {
+        Object.entries(d.dayMap).forEach(([ds, h]) => {
+          if (getISOWeek(ds) === w && h > OT_DAILY) c++;
+        });
+      });
+      return c;
+    });
+
+    charts['chartDaily4Trend'] = new Chart(document.getElementById('chartDaily4Trend'), {
+      type: 'line',
+      data: {
+        labels: weekLabels,
+        datasets: [{
+          label: '% Hari >4 jam/hari',
+          data: pctAbove,
+          borderColor: '#0ea5e9',
+          backgroundColor: '#0ea5e922',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#0ea5e9',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0, max: 100,
+            grid: { color: '#e4ecf4' },
+            ticks: { callback: v => v + '%' },
+            title: { display: true, text: '% dari hari yang OT', font: { size: 10 } }
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 } } },
+          datalabels: {
+            display: true,
+            anchor: 'top', align: 'top', offset: 4,
+            color: '#0ea5e9', font: { size: 9, weight: '700' },
+            formatter: (v, ctx) => {
+              const idx = ctx.dataIndex;
+              return [v + '%', '(' + countAboveDays[idx] + ')'];
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const idx = ctx.dataIndex;
+                return ` ${ctx.raw}% (${countAboveDays[idx]} hari >4j)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Bar chart top 15 worst days
+  const top15 = violations.slice(0, 15);
+  charts['chartDaily4'] = new Chart(document.getElementById('chartDaily4'), {
+    type: 'bar',
+    data: {
+      labels: top15.map(v => {
+        const n = v.name.length > 15 ? v.name.substring(0,15)+'...' : v.name;
+        return n + ' (' + fmtDate(v.dateStr) + ')';
+      }),
+      datasets: [
+        { label: 'Jam OT Hari', data: top15.map(v => v.hours), backgroundColor: '#0ea5e944', borderColor: '#0ea5e9', borderWidth: 1 },
+        { label: 'Batas (4j)', data: top15.map(() => OT_DAILY), type:'line', borderColor:'#f59e0b', borderWidth:2, borderDash:[6,3], pointRadius:0, fill:false, order:0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'bottom', labels:{font:{size:10}} },
+        datalabels: {
+          display: true, anchor:'end', align:'top', font:{size:9,weight:'bold'}, color:'#0ea5e9',
+          formatter: v => v === OT_DAILY ? '' : (typeof v === 'number' ? v.toFixed(1) : v)+'j'
+        },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${typeof ctx.raw === 'number' ? ctx.raw.toFixed(1) : ctx.raw} jam` } }
+      },
+      scales: {
+        y: { title:{display:true,text:'Jam OT/Hari',font:{size:10}}, grid:{color:'#e4ecf4'}, suggestedMin:0 },
+        x: { ticks:{font:{size:9},maxRotation:40}, grid:{display:false} }
+      }
+    }
+  });
+
+  // Tabel top 10 drivers
+  const driverAgg4 = {};
+  violations.forEach(v => {
+    if (!driverAgg4[v.nik]) {
+      driverAgg4[v.nik] = { nik: v.nik, name: v.name, site: v.site, bu: v.bu, totalHours: 0, violDays: [], maxHours: 0 };
+    }
+    driverAgg4[v.nik].totalHours += v.hours;
+    driverAgg4[v.nik].violDays.push(v.dateStr);
+    driverAgg4[v.nik].maxHours = Math.max(driverAgg4[v.nik].maxHours, v.hours);
+  });
+
+  const top10daily = Object.values(driverAgg4)
+    .sort((a,b) => b.violDays.length - a.violDays.length || b.totalHours - a.totalHours)
+    .slice(0, 10);
+
+  const tbody = document.getElementById('daily4Body');
+  if (!tbody) return;
+  tbody.innerHTML = top10daily.map((d, i) => {
+    const isRepeat = d.violDays.length > 1;
+    const dayStr = d.violDays.length <= 5
+      ? d.violDays.map(ds => fmtDate(ds)).join(', ')
+      : d.violDays.slice(0,5).map(ds => fmtDate(ds)).join(', ') + ' +' + (d.violDays.length-5) + ' lagi';
+    const hoursColor = d.totalHours > 100 ? '#dc2626' : d.totalHours > 50 ? '#0ea5e9' : '#0284c7';
+    const badges = [
+      isRepeat ? '<span style="background:#0ea5e922;color:#0ea5e9;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px">\uD83D\uDD01 ' + d.violDays.length + 'x</span>' : '',
+      d.violDays.length >= 20 ? '<span style="background:#dc262622;color:#dc2626;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px">\u26A0\uFE0F Sering</span>' : '',
+    ].filter(Boolean).join(' ');
+    return '<tr>' +
+      '<td style="color:#94a3b8">' + (i+1) + '</td>' +
+      '<td><div style="font-weight:600;font-size:12px">' + d.name + '</div><div style="font-size:10px;color:#94a3b8;font-family:monospace">' + d.nik + '</div></td>' +
+      '<td>' + siteBadge(d.site) + '</td>' +
+      '<td class="r" style="color:' + hoursColor + ';font-weight:700">' + d.totalHours.toFixed(1) + ' jam</td>' +
+      '<td class="r" style="font-size:10px;color:#4a5568;max-width:200px">' + dayStr + '</td>' +
+      '<td class="r" style="font-size:11px;color:#0ea5e9;font-weight:600">' + d.maxHours.toFixed(1) + ' jam</td>' +
+      '<td>' + (badges || '<span style="color:#cbd5e1;font-size:10px">-</span>') + '</td>' +
+    '</tr>';
   }).join('');
 }
 
