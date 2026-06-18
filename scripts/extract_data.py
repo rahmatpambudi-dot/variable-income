@@ -490,6 +490,9 @@ def extract_ot(wb_ot):
         name     = g(ci['name'])
         location  = g(ci['location'])
         bu        = g(ci['bu'])
+        # Cikupa hanya punya 1 BU (HCI) — force override
+        if 'CIKUPA' in g(ci['location']).upper():
+            bu = 'HCI'
         site_cat  = g(ci['site_cat'])
         hours     = to_num(g(ci['hours']))
         idr       = to_num(g(ci['idr']))
