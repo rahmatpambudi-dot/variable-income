@@ -587,7 +587,7 @@ def build_driver_data(nik_to_ins, ot, months):
             site     = INS_SITE_DISPLAY.get(ins_tab, ins_tab or '-')
             site_cat = INS_SITE_CAT.get(ins_tab, 'HUB')
             location = site
-            bu       = ''
+            bu       = 'HCI' if ins_tab == 'CKP' else ''
 
         monthly = {}
         total_ot_hours = 0.0
