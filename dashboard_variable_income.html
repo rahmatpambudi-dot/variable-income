@@ -1909,7 +1909,7 @@ function renderInsight() {
       cutout: '58%',
       layout:{ padding:{ top:30, bottom:100, left:65, right:65 } },
       plugins:{
-        legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12, padding:20 } },
+        legend:{ display:false },
         tooltip:{callbacks:{
           label: function(ctx){
             const pct = (ctx.raw/totalOTIdr*100).toFixed(1);
