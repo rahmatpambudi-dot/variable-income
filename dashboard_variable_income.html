@@ -786,20 +786,12 @@ function dval(d,key) {
       }, 0);
     }
     if(key==='total_ins') {
-      let ins = 0;
-      if(d.ins_dates && Object.keys(d.ins_dates).length>0) {
-        ins = Object.entries(d.ins_dates).reduce((sum,[dt,v])=>{
-          if(dt>=from && dt<=to) return sum+(v||0); return sum;
-        }, 0);
-      } else {
-        const months = S.activeMonths || MONTHS;
-        ins = months.reduce((sum,m)=>sum+((d.monthly?.[m]?.insentif)||0), 0);
-      }
-      if(key==='total_ins') return ins;
-      const ot = !d.dates ? 0 : Object.entries(d.dates).reduce((sum,[dt,v])=>{
-        if(dt>=from && dt<=to) return sum+(v.idr||0); return sum;
+      // Range aktif: SELALU filter by tanggal — tidak ada fallback ke monthly
+      // Driver tanpa ins_dates (atau kosong) → 0 untuk range ini (konsisten dgn OT)
+      if(!d.ins_dates || Object.keys(d.ins_dates).length===0) return 0;
+      return Object.entries(d.ins_dates).reduce((sum,[dt,v])=>{
+        if(dt>=from && dt<=to) return sum+(v||0); return sum;
       }, 0);
-      return ot+ins;
     }
     return 0;
   }
@@ -1352,10 +1344,11 @@ function renderMonthlyChart(data){
     if(!useRange) return data.reduce((sum,d)=>sum+(d.monthly[m]?.insentif||0),0);
     const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
     const dFrom=`2026-${mm}-${dayFrom}`, dTo=`2026-${mm}-${dayTo}`;
+    // Range aktif: SELALU filter by tanggal — tidak ada fallback ke monthly
+    // Driver tanpa ins_dates → 0 (konsisten dengan OT yang juga 0 kalau tidak ada dates)
     return data.reduce((sum,d)=>{
-      if(d.ins_dates&&Object.keys(d.ins_dates).length)
-        return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>dt>=dFrom&&dt<=dTo?s+(v||0):s,0);
-      return sum+(d.monthly[m]?.insentif||0);
+      if(!d.ins_dates||!Object.keys(d.ins_dates).length) return sum;
+      return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>dt>=dFrom&&dt<=dTo?s+(v||0):s,0);
     },0);
   }
 
@@ -1626,7 +1619,11 @@ function renderCharts(){
     if(!useRange) return data.filter(d=>d.site===site).reduce((sum,d)=>sum+(d.monthly[m]?.insentif||0),0);
     const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
     const dF=`2026-${mm}-${dayFrom}`,dT=`2026-${mm}-${dayTo}`;
-    return data.filter(d=>d.site===site).reduce((sum,d)=>{if(!d.ins_dates)return sum+(d.monthly[m]?.insentif||0);return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>dt>=dF&&dt<=dT?s+(v||0):s,0);},0);
+    // Range aktif: SELALU filter by tanggal — tidak ada fallback ke monthly
+    return data.filter(d=>d.site===site).reduce((sum,d)=>{
+      if(!d.ins_dates||!Object.keys(d.ins_dates).length) return sum;
+      return sum+Object.entries(d.ins_dates).reduce((s,[dt,v])=>dt>=dF&&dt<=dT?s+(v||0):s,0);
+    },0);
   }
   function smHours(site,m){
     if(!useRange) return data.filter(d=>d.site===site).reduce((sum,d)=>sum+(d.monthly[m]?.ot_hours||0),0);
