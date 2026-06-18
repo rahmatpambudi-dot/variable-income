@@ -480,6 +480,7 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
         <div class="ctitle">Komposisi OT per Kategori</div>
         <div class="csub">% kontribusi terhadap total OT IDR</div>
         <canvas id="chartOTCat" height="220"></canvas>
+        <div id="otCatLegendTable" style="margin-top:12px;overflow-x:auto"></div>
       </div>
       <div class="ccard">
         <div class="ctitle">OT vs Insentif per Site</div>
@@ -1950,6 +1951,61 @@ function renderInsight() {
     },
     plugins: [centerTextPlugin],
   });
+
+  // ── Legend table for OT Category donut ──────────────────────────────
+  (function renderOTCatTable() {
+    const wrap = document.getElementById('otCatLegendTable');
+    if (!wrap) return;
+    const totalHours = Object.values(catAgg).reduce((s,v)=>s+v.hours,0)||1;
+    const rows = catLabels
+      .filter(c => catAgg[c] && catAgg[c].idr > 0)
+      .map(c => ({
+        cat: c,
+        hours: catAgg[c].hours,
+        idr: catAgg[c].idr,
+        pct: catAgg[c].idr / totalOTIdr * 100,
+        color: OT_CAT_COLORS[c] || '#94a3b8'
+      }))
+      .sort((a,b) => b.idr - a.idr);
+
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:11.5px">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0;color:#64748b;text-align:left">
+          <th style="padding:5px 8px;font-weight:600">Kategori</th>
+          <th style="padding:5px 8px;font-weight:600;text-align:right">Jam OT</th>
+          <th style="padding:5px 8px;font-weight:600;text-align:right">IDR</th>
+          <th style="padding:5px 8px;font-weight:600;text-align:right">%</th>
+        </tr>
+      </thead><tbody>`;
+
+    rows.forEach((r,i) => {
+      const isSmall = r.pct < 3.5;
+      const bg = i % 2 === 0 ? '#f8fafc' : '#fff';
+      const opacity = isSmall ? '0.6' : '1';
+      const style = `opacity:${opacity};font-style:${isSmall?'italic':'normal'}`;
+      html += `<tr style="background:${bg};${style};border-bottom:1px solid #f1f5f9">
+        <td style="padding:5px 8px;display:flex;align-items:center;gap:6px">
+          <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
+          ${r.cat}${isSmall?' <span style="font-size:9px;color:#94a3b8">(kecil)</span>':''}
+        </td>
+        <td style="padding:5px 8px;text-align:right;color:#334155">${r.hours.toFixed(1)}</td>
+        <td style="padding:5px 8px;text-align:right;color:#334155;font-weight:500">Rp ${fmt(r.idr)}</td>
+        <td style="padding:5px 8px;text-align:right;color:${isSmall?'#94a3b8':'#1e40af'};font-weight:600">${r.pct.toFixed(1)}%</td>
+      </tr>`;
+    });
+
+    // Total row
+    const totalIdr = rows.reduce((s,r)=>s+r.idr,0);
+    const totalH   = rows.reduce((s,r)=>s+r.hours,0);
+    html += `<tr style="border-top:2px solid #e2e8f0;font-weight:700;background:#f1f5f9">
+      <td style="padding:5px 8px">TOTAL</td>
+      <td style="padding:5px 8px;text-align:right">${totalH.toFixed(1)}</td>
+      <td style="padding:5px 8px;text-align:right">Rp ${fmt(totalIdr)}</td>
+      <td style="padding:5px 8px;text-align:right">100%</td>
+    </tr></tbody></table>`;
+
+    wrap.innerHTML = html;
+  })();
 
   // OT vs Insentif per site stacked bar — ikut filter aktif
   destroyChart('otInsComp');
