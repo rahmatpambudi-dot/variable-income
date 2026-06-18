@@ -190,7 +190,7 @@ def classify_ot(paid_type, description):
     if any(x in desc for x in ['OT TIM DC HUB','OVERTIME TIM','OVERTIME TIM DC HUB',
                                  'LEMBUR DRIVER DC HUB','LEMBUR DRIVER & ASST DRIVER DC HUB',
                                  'LEMBURAN DRIVER DC HUB','PERIODE CUT OFF','CUT OFF PERIODE',
-                                 'PERIODE 1','PERIODE 16 J','PERIODE 12 ']):
+                                 'PERIODE 16 J','PERIODE 12 ']):
         return 'Delivery Mix'
 
     # 15. Delivery Store
