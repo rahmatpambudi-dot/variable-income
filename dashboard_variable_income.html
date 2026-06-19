@@ -1437,11 +1437,12 @@ function renderDailyTrendChart(data){
     }
   });
 
-  // Label singkat: "1 Jun", "2 Jun", dst
+  const DAY_SHORT = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const labels = dates.map(dt => {
-    const [,mm,dd] = dt.split('-');
-    return `${parseInt(dd)} ${MONTH_SHORT[parseInt(mm)-1]}`;
+    const [y,mm,dd] = dt.split('-');
+    const dayName = DAY_SHORT[new Date(+y, +mm-1, +dd).getDay()];
+    return `${dayName} ${parseInt(dd)} ${MONTH_SHORT[parseInt(mm)-1]}`;
   });
 
   const otData  = dates.map(dt => otByDate[dt]||0);
