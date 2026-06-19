@@ -212,6 +212,12 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
     <div id="pg-overview" class="page active">
       <div class="kpi5" id="kpi-ov"></div>
       <div class="site-grid" id="site-cards"></div>
+      <!-- Daily trend — only visible when range date active -->
+      <div class="ccard" id="daily-trend-wrap" style="display:none;margin-bottom:13px">
+        <div class="ctitle" id="daily-trend-title">Trend Harian</div>
+        <div class="csub" id="daily-trend-sub">OT + Insentif per hari dalam range</div>
+        <canvas id="chartDailyTrend" height="120"></canvas>
+      </div>
       <div class="ch2">
         <div class="ccard">
           <div class="ctitle">OT vs Insentif per Bulan</div>
@@ -1280,6 +1286,7 @@ function renderOverview(){
   }).join('');
 
   renderMonthlyChart(data);
+  renderDailyTrendChart(data);
   renderMonthlyHoursChart(data);
   renderAvgHoursChart(data);
   renderPctDriverChart(data);
@@ -1374,6 +1381,109 @@ function renderMonthlyChart(data){
   if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
   if(S.showIns) datasets.push({label:'Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
   charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+}
+
+function renderDailyTrendChart(data){
+  destroyChart('dailyTrend');
+  const wrap = document.getElementById('daily-trend-wrap');
+  const useRange = !!(S.dateFrom || S.dateTo);
+  if(!wrap) return;
+
+  // Hanya tampil saat range date aktif
+  if(!useRange){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+
+  const from = S.dateFrom || '2026-01-01';
+  const to   = S.dateTo   || '2026-12-31';
+
+  // Kumpulkan semua tanggal dalam range
+  const dateSet = new Set();
+  data.forEach(d => {
+    if(S.showOT && d.dates){
+      Object.keys(d.dates).forEach(dt => { if(dt>=from && dt<=to) dateSet.add(dt); });
+    }
+    if(S.showIns && d.ins_dates){
+      Object.keys(d.ins_dates).forEach(dt => { if(dt>=from && dt<=to) dateSet.add(dt); });
+    }
+  });
+
+  const dates = [...dateSet].sort();
+  if(!dates.length){ wrap.style.display='none'; return; }
+
+  // Sum OT IDR dan Insentif per tanggal
+  const otByDate  = {};
+  const insByDate = {};
+  dates.forEach(dt => { otByDate[dt]=0; insByDate[dt]=0; });
+
+  data.forEach(d => {
+    if(S.showOT && d.dates){
+      Object.entries(d.dates).forEach(([dt,v]) => {
+        if(dt>=from && dt<=to) otByDate[dt] = (otByDate[dt]||0) + (v.idr||0);
+      });
+    }
+    if(S.showIns && d.ins_dates){
+      Object.entries(d.ins_dates).forEach(([dt,v]) => {
+        if(dt>=from && dt<=to) insByDate[dt] = (insByDate[dt]||0) + (v||0);
+      });
+    }
+  });
+
+  // Label singkat: "1 Jun", "2 Jun", dst
+  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const labels = dates.map(dt => {
+    const [,mm,dd] = dt.split('-');
+    return `${parseInt(dd)} ${MONTH_SHORT[parseInt(mm)-1]}`;
+  });
+
+  const otData  = dates.map(dt => otByDate[dt]||0);
+  const insData = dates.map(dt => insByDate[dt]||0);
+
+  // Update subtitle
+  const sub = document.getElementById('daily-trend-sub');
+  if(sub){
+    const parts = [];
+    if(S.showOT)  parts.push('OT');
+    if(S.showIns) parts.push('Insentif');
+    sub.textContent = (parts.join(' + ') || 'Data') + ' per hari — ' + from.slice(8,10)+'/'+from.slice(5,7) + ' s/d ' + to.slice(8,10)+'/'+to.slice(5,7);
+  }
+
+  const datasets = [];
+  if(S.showOT)  datasets.push({
+    label:'OT', data:otData,
+    borderColor:'#3b82f6', backgroundColor:'#3b82f622',
+    pointRadius:3, pointHoverRadius:5, tension:0.3, fill:true, borderWidth:2
+  });
+  if(S.showIns) datasets.push({
+    label:'Insentif', data:insData,
+    borderColor:'#22c55e', backgroundColor:'#22c55e22',
+    pointRadius:3, pointHoverRadius:5, tension:0.3, fill:true, borderWidth:2
+  });
+
+  charts['dailyTrend'] = new Chart(document.getElementById('chartDailyTrend'), {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true,
+      layout:{padding:{top:16}},
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{size:10} } },
+        datalabels:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => ` ${ctx.dataset.label}: Rp ${fmtFull(ctx.raw)}`
+          }
+        }
+      },
+      scales:{
+        x:{ ticks:{ font:{size:9}, maxRotation:45, autoSkip:true, maxTicksLimit:20 }, grid:{color:'#e4ecf4'} },
+        y:{ ticks:{ callback:v=>fmt(v), font:{size:9} }, grid:{color:'#e4ecf4'} }
+      }
+    }
+  });
 }
 
 function renderMonthlyHoursChart(data){
