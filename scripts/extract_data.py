@@ -18,6 +18,16 @@ OT_SHEET_TAB = 'Raw Data'
 DUMMY_NIKS = {'999999', '0', ''}
 DUMMY_NAME_KEYWORDS = ['DUMMY', 'TEST']
 
+# MPP KLS Jakarta — official list (NIK di-normalize sama seperti normalize_nik()).
+# Driver-driver ini dipaksa site = 'JAKARTA (KLS)' di semua bulan (termasuk histori
+# Jan-Mei yang raw location-nya masih "DC CIKARANG JABABEKA (KLS)"), supaya
+# perbandingan konsisten/fair sebelum-sesudah perubahan BU KLS Jababeka -> KLS Jakarta.
+MPP_KLS_JAKARTA_NIKS = {
+    '147135', 'E03210', 'E05251', 'E06447', 'E04801', 'E03238', '138927', 'E02252',
+    'E03479', '147126', 'E06446', 'E00505', 'E06448', 'E06471', 'E06444', 'E04800',
+    'E06450', 'E06502', 'E00762', 'E06449', '141454', '147475', 'E06445', 'E04802',
+}
+
 INSENTIF_SITES = [
     'JBBK', 'CKP', 'SDA',
     'Hub Bogor', 'Hub Tangerang', 'Hub Utara', 'Hub Bandung',
@@ -588,6 +598,10 @@ def build_driver_data(nik_to_ins, ot, months):
             site_cat = INS_SITE_CAT.get(ins_tab, 'HUB')
             location = site
             bu       = 'HCI' if ins_tab == 'CKP' else ''
+
+        # Override MPP KLS Jakarta — berlaku di semua bulan termasuk histori Jan-Mei
+        if nik in MPP_KLS_JAKARTA_NIKS:
+            site = 'JAKARTA (KLS)'
 
         monthly = {}
         total_ot_hours = 0.0
