@@ -338,8 +338,28 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
           <canvas id="chartWeekly18Trend" height="180"></canvas>
         </div>
       </div>
-      <!-- Bar chart top offenders -->
-      <div style="margin-bottom:14px"><canvas id="chartWeekly18" height="140"></canvas></div>
+      <!-- Bar chart top offenders + Kategori OT breakdown (side by side) -->
+      <div class="ch2" style="margin-bottom:14px">
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">Top 15 Kejadian Terparah</div>
+          <canvas id="chartWeekly18" height="180"></canvas>
+        </div>
+        <div class="ccard">
+          <div class="ctitle" style="font-size:13px">🏷️ Kategori OT — MPP &gt;18 Jam</div>
+          <div class="csub">Kategori dominan per kejadian minggu (dari 13 MPP di atas)</div>
+          <div class="tbl-wrap" style="margin-top:8px">
+            <table>
+              <thead><tr>
+                <th>Kategori OT</th>
+                <th class="r">MPP</th>
+                <th class="r">%</th>
+              </tr></thead>
+              <tbody id="weekly18CatBody"></tbody>
+            </table>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:6px">*Kategori dominan diambil dari proporsi kategori OT driver di bulan yang sama dengan minggu pelanggaran.</div>
+        </div>
+      </div>
       <!-- Tabel -->
       <div class="tbl-wrap">
         <table>
@@ -2543,6 +2563,17 @@ function getISOWeek(dateStr) {
   return d.getFullYear() + '-W' + String(week).padStart(2,'0');
 }
 
+function weekToMonthName(isoWeek) {
+  // "2026-W05" → "February" (nama bulan tempat Senin di minggu itu jatuh)
+  const [yr, wk] = isoWeek.split('-W');
+  const jan4 = new Date(parseInt(yr), 0, 4);
+  const dayOfWeek = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (parseInt(wk)-1)*7);
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return monthNames[monday.getMonth()];
+}
+
 function weekLabel(isoWeek) {
   // "2026-W05" → "W05 (Feb)"
   const [yr, wk] = isoWeek.split('-W');
@@ -2762,6 +2793,47 @@ function renderWeekly18(data) {
       }
     }
   });
+
+  // ── Kategori OT: MPP dominan per kejadian (breakdown dari KPI 13 MPP) ───────
+  // Catatan: kategori OT tercatat per bulan per driver, bukan per minggu.
+  // Kategori dominan = kategori dengan jam terbesar di bulan yang sama dengan
+  // minggu pelanggaran itu. Total MPP di tabel ini = total violations di atas.
+  {
+    const nikToDriver = {};
+    data.forEach(d => { nikToDriver[d.nik] = d; });
+
+    const catCount = {};
+    violations.forEach(v => {
+      const driverObj = nikToDriver[v.nik];
+      const monthName = weekToMonthName(v.week);
+      const catsInMonth = driverObj && driverObj.ot_cats_monthly ? driverObj.ot_cats_monthly[monthName] : null;
+      let dominant = 'Tidak Ada Deskripsi';
+      if (catsInMonth) {
+        const sorted = Object.entries(catsInMonth).sort((a,b) => (b[1].hours||0) - (a[1].hours||0));
+        if (sorted.length > 0) dominant = sorted[0][0];
+      }
+      catCount[dominant] = (catCount[dominant] || 0) + 1;
+    });
+
+    const totalViol = violations.length || 1;
+    const catCountSorted = Object.entries(catCount).sort((a,b) => b[1]-a[1]);
+
+    const catBody = document.getElementById('weekly18CatBody');
+    if (catBody) {
+      catBody.innerHTML = catCountSorted.map(([cat, count]) => {
+        const pct = Math.round(count/totalViol*100);
+        return `<tr>
+          <td style="font-size:11px">${cat}</td>
+          <td class="r" style="font-weight:700;color:#f97316">${count}</td>
+          <td class="r" style="font-size:11px;color:#4a5568">${pct}%</td>
+        </tr>`;
+      }).join('') + `<tr style="border-top:1px solid #e4ecf4">
+          <td style="font-size:11px;font-weight:700">Total</td>
+          <td class="r" style="font-weight:700">${violations.length}</td>
+          <td class="r" style="font-size:11px;font-weight:700">100%</td>
+        </tr>`;
+    }
+  }
 
   // ── Tabel top 10 drivers by violating weeks ──────────────────────────────────
   const driverAgg18 = {};
