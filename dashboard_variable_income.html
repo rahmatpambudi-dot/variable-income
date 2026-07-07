@@ -367,6 +367,7 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
             <th style="width:28px">#</th>
             <th>Nama</th>
             <th>Site</th>
+            <th>BU</th>
             <th class="r">Total Jam OT</th>
             <th class="r">Minggu Langgar</th>
             <th class="r">Max Jam/Minggu</th>
@@ -2866,6 +2867,7 @@ function renderWeekly18(data) {
         <div style="font-size:10px;color:#94a3b8;font-family:monospace">${d.nik}</div>
       </td>
       <td>${siteBadge(d.site)}</td>
+      <td style="font-size:11px;color:#4a5568">${d.bu || '-'}</td>
       <td class="r" style="color:${hoursColor};font-weight:700">${d.totalHours.toFixed(1)} jam</td>
       <td class="r" style="font-size:11px;color:#4a5568">${weekStr}</td>
       <td class="r" style="font-size:11px;color:#f97316;font-weight:600">${d.maxHours.toFixed(1)} jam</td>
