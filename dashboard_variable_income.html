@@ -230,6 +230,11 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
           <canvas id="chartSite" height="180"></canvas>
         </div>
       </div>
+      <div class="ccard" style="margin-bottom:13px">
+        <div class="ctitle">Rata-rata Pendapatan per Driver per Bulan</div>
+        <div class="csub">Total IDR dibagi jumlah driver aktif (bukan total keseluruhan)</div>
+        <canvas id="chartAvgIncome" height="150"></canvas>
+      </div>
       <div class="ch2">
         <div class="ccard">
           <div class="ctitle">Jam OT per Bulan</div>
@@ -1312,6 +1317,7 @@ function renderOverview(){
   }).join('');
 
   renderMonthlyChart(data);
+  renderAvgIncomeChart(data);
   renderDailyTrendChart(data);
   renderMonthlyHoursChart(data);
   renderAvgHoursChart(data);
@@ -1408,6 +1414,70 @@ function renderMonthlyChart(data){
   if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
   if(S.showIns) datasets.push({label:'Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
   charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+}
+
+function renderAvgIncomeChart(data){
+  destroyChart('avgIncome');
+  const ctx=document.getElementById('chartAvgIncome');
+  if(!ctx) return;
+  const useRange=!!(S.dateFrom||S.dateTo);
+  const dayFrom = S.dateFrom ? S.dateFrom.slice(8,10) : '01';
+  const dayTo   = S.dateTo   ? S.dateTo.slice(8,10)   : '31';
+
+  // Rata-rata = total IDR pada bulan tsb dibagi jumlah driver yang punya nilai > 0 pada bulan tsb
+  function monthAvgOT(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    const dFrom=`2026-${mm}-${dayFrom}`, dTo=`2026-${mm}-${dayTo}`;
+    let total=0, active=0;
+    data.forEach(d=>{
+      let v=0;
+      if(useRange){
+        if(!d.dates) return;
+        v=Object.entries(d.dates).reduce((s,[dt,val])=>dt>=dFrom&&dt<=dTo?s+(val.idr||0):s,0);
+      } else {
+        v=d.monthly[m]?.ot_idr||0;
+      }
+      if(v>0){ total+=v; active++; }
+    });
+    return active>0?total/active:0;
+  }
+
+  function monthAvgIns(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    const dFrom=`2026-${mm}-${dayFrom}`, dTo=`2026-${mm}-${dayTo}`;
+    let total=0, active=0;
+    data.forEach(d=>{
+      let v=0;
+      if(useRange){
+        if(!d.ins_dates||!Object.keys(d.ins_dates).length) return;
+        v=Object.entries(d.ins_dates).reduce((s,[dt,val])=>dt>=dFrom&&dt<=dTo?s+(val||0):s,0);
+      } else {
+        v=d.monthly[m]?.insentif||0;
+      }
+      if(v>0){ total+=v; active++; }
+    });
+    return active>0?total/active:0;
+  }
+
+  let idxToShow;
+  if(S.activeFM && S.activeFM!=='all'){
+    const fmIdx = MONTHS.indexOf(S.activeFM);
+    idxToShow = MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else {
+    const allOT  = MONTHS.map(m=>monthAvgOT(m));
+    const allIns = MONTHS.map(m=>monthAvgIns(m));
+    const active = MONTHS.map((_,i)=>(allOT[i]||0)+(allIns[i]||0)>0 ? i : -1).filter(i=>i>=0);
+    idxToShow = active.length > 0 ? active : MONTHS.map((_,i)=>i);
+  }
+
+  const labels  = idxToShow.map(i=>ms(MONTHS[i]));
+  const otData  = idxToShow.map(i=>Math.round(monthAvgOT(MONTHS[i])));
+  const insData = idxToShow.map(i=>Math.round(monthAvgIns(MONTHS[i])));
+
+  const datasets=[];
+  if(S.showOT)  datasets.push({label:'Rata-rata OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
+  if(S.showIns) datasets.push({label:'Rata-rata Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
+  charts['avgIncome']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
 }
 
 function renderDailyTrendChart(data){
