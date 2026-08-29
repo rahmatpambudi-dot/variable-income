@@ -251,6 +251,13 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
         <div class="ctitle">Distribusi Jam OT per Driver</div>
         <div class="csub">Persentase driver aktif per rentang jam OT, dibandingkan antar bulan</div>
         <canvas id="chartOTDist" height="170"></canvas>
+        <div class="csub" style="margin-top:6px;font-size:9.5px">Qty Driver</div>
+        <div class="tbl-wrap" style="margin-top:2px">
+          <table id="otDistTable" style="font-size:9.5px">
+            <thead><tr id="otDistTableHead"><th style="padding:3px 5px;font-size:8.5px">Jam OT Driver</th></tr></thead>
+            <tbody id="otDistTableBody"></tbody>
+          </table>
+        </div>
       </div>
       <div class="ch2" style="margin-bottom:13px">
         <div class="ccard">
@@ -1793,6 +1800,33 @@ function renderOTDistributionChart(data){
       }
     }
   });
+
+  // ── Tabel Qty Driver per Rentang Jam OT ──
+  function monthCounts(m){
+    const mm=String(MONTHS.indexOf(m)+1).padStart(2,'0');
+    const hoursArr=[];
+    data.forEach(d=>{
+      let h=0;
+      if(useRange && d.dates){
+        const dF=`2026-${mm}-${dayFrom}`, dT=`2026-${mm}-${dayTo}`;
+        h=Object.entries(d.dates).reduce((s,[dt,v])=>dt>=dF&&dt<=dT?s+(v.hours||0):s,0);
+      } else {
+        h=d.monthly[m]?.ot_hours||0;
+      }
+      if(h>=1) hoursArr.push(h);
+    });
+    return BUCKETS.map(b=>hoursArr.filter(b.test).length);
+  }
+  const countsByMonth=idxToShow.map(i=>monthCounts(MONTHS[i]));
+  const otDistHead=document.getElementById('otDistTableHead');
+  const otDistBody=document.getElementById('otDistTableBody');
+  if(otDistHead && otDistBody){
+    otDistHead.innerHTML='<th style="padding:3px 5px;font-size:8.5px">Jam OT Driver</th>'+labels.map(l=>`<th class="r" style="padding:3px 5px;font-size:8.5px">${l}</th>`).join('');
+    otDistBody.innerHTML=BUCKETS.map((b,bi)=>{
+      const cells=countsByMonth.map(row=>`<td class="r" style="padding:3px 5px">${row[bi]}</td>`).join('');
+      return `<tr><td style="padding:3px 5px;color:${b.color};font-weight:600;white-space:nowrap">${b.key}</td>${cells}</tr>`;
+    }).join('');
+  }
 }
 
 // ── CHART: % Driver yang OT per Bulan ────────────────────────────────────────
