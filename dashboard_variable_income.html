@@ -1739,6 +1739,10 @@ function renderOTDistributionChart(data){
   if(S.activeFM&&S.activeFM!=='all'){
     const fmIdx=MONTHS.indexOf(S.activeFM);
     idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
     const vals=MONTHS.map(m=>monthDist(m).reduce((a,b)=>a+b,0));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
