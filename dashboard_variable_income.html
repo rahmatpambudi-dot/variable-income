@@ -1405,8 +1405,13 @@ function renderMonthlyChart(data){
     // FM aktif → tampil Jan sampai bulan yang dipilih
     const fmIdx = MONTHS.indexOf(S.activeFM);
     idxToShow = MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    // Range date aktif → tampil semua bulan dalam rentang, walau datanya 0
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
-    // Range date atau no filter → tampil bulan yang ada datanya
+    // No filter → tampil bulan yang ada datanya
     const allOT  = MONTHS.map(m=>monthOT(m));
     const allIns = MONTHS.map(m=>monthIns(m));
     const active = MONTHS.map((_,i)=>(allOT[i]||0)+(allIns[i]||0)>0 ? i : -1).filter(i=>i>=0);
@@ -1470,6 +1475,10 @@ function renderAvgIncomeChart(data){
   if(S.activeFM && S.activeFM!=='all'){
     const fmIdx = MONTHS.indexOf(S.activeFM);
     idxToShow = MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
     const allOT  = MONTHS.map(m=>monthAvgOT(m));
     const allIns = MONTHS.map(m=>monthAvgIns(m));
@@ -1615,11 +1624,15 @@ function renderMonthlyHoursChart(data){
     },0);
   }
 
-  // X axis: FM → Jan sampai bulan dipilih; range/no filter → bulan yg ada data
+  // X axis: FM → Jan sampai bulan dipilih; range aktif → semua bulan dlm rentang; no filter → bulan yg ada data
   let idxToShow;
   if(S.activeFM&&S.activeFM!=='all'){
     const fmIdx=MONTHS.indexOf(S.activeFM);
     idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
     const vals=MONTHS.map(m=>monthHours(m));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
@@ -1859,6 +1872,10 @@ function renderPctDriverChart(data){
   if(S.activeFM&&S.activeFM!=='all'){
     const fmIdx=MONTHS.indexOf(S.activeFM);
     idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
     const vals=MONTHS.map(m=>monthPct(m));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
@@ -1907,6 +1924,10 @@ function renderWdWeChart(data){
   if(S.activeFM&&S.activeFM!=='all'){
     const fmIdx=MONTHS.indexOf(S.activeFM);
     idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=fmIdx);
+  } else if(useRange){
+    const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
+    const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
   } else {
     const check=MONTHS.map(m=>{ const r=monthWdWe(m); return r.wd+r.we; });
     const active=check.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
