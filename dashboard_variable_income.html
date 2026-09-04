@@ -1425,7 +1425,7 @@ function renderMonthlyChart(data){
   const datasets=[];
   if(S.showOT)  datasets.push({label:'OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
   if(S.showIns) datasets.push({label:'Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
-  charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+  charts['monthly']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>=0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
 }
 
 function renderAvgIncomeChart(data){
@@ -1493,7 +1493,7 @@ function renderAvgIncomeChart(data){
   const datasets=[];
   if(S.showOT)  datasets.push({label:'Rata-rata OT',  data:otData,  backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1});
   if(S.showIns) datasets.push({label:'Rata-rata Insentif',data:insData,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1});
-  charts['avgIncome']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
+  charts['avgIncome']=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>=0,anchor:'end',align:'end',offset:2,color:ctx=>ctx.dataset.borderColor,font:{size:9,weight:'700'},formatter:v=>fmt(v)}},scales:{y:{ticks:{callback:function(v){return fmt(v);}},grid:{color:'#e4ecf4'}}}}});
 }
 
 function renderDailyTrendChart(data){
@@ -1657,7 +1657,7 @@ function renderMonthlyHoursChart(data){
       plugins:{
         legend:{position:'bottom',labels:{font:{size:10}}},
         datalabels:{
-          display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,
+          display:ctx=>ctx.dataset.data[ctx.dataIndex]>=0,
           anchor:'end',align:'end',offset:2,
           color:'#8b5cf6',font:{size:9,weight:'700'},
           formatter:v=>v>=1000?(v/1000).toFixed(1)+'rb':v+'j'
@@ -1887,7 +1887,7 @@ function renderPctDriverChart(data){
   charts['pctDriver']=new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[{label:'% Driver OT',data:vals,backgroundColor:'#06b6d488',borderColor:'#06b6d4',borderWidth:1}]},
-    options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',offset:2,color:'#06b6d4',font:{size:9,weight:'700'},formatter:v=>v+'%'}},scales:{y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'#e4ecf4'}}}}
+    options:{responsive:true,layout:{padding:{top:24}},plugins:{legend:{position:'bottom',labels:{font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>=0,anchor:'end',align:'end',offset:2,color:'#06b6d4',font:{size:9,weight:'700'},formatter:v=>v+'%'}},scales:{y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'#e4ecf4'}}}}
   });
 }
 
