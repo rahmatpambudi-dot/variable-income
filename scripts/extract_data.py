@@ -46,6 +46,7 @@ LOCATION_TO_SITE = [
     (['JABABEKA'],                       'Jababeka'),
     (['CIKUPA'],                         'Cikupa'),
     (['SIDOARJO', 'SURABAYA', 'JUANDA'], 'Sidoarjo'),
+    (['TANJUNG MORAWA'],                 'DC TANJUNG MORAWA MEDAN'),
 ]
 
 # Mapping insentif tab → display site (fallback untuk ins only)
