@@ -1409,7 +1409,7 @@ function renderMonthlyChart(data){
     // Range date aktif → tampil semua bulan dalam rentang, walau datanya 0
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     // No filter → tampil bulan yang ada datanya
     const allOT  = MONTHS.map(m=>monthOT(m));
@@ -1478,7 +1478,7 @@ function renderAvgIncomeChart(data){
   } else if(useRange){
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     const allOT  = MONTHS.map(m=>monthAvgOT(m));
     const allIns = MONTHS.map(m=>monthAvgIns(m));
@@ -1632,7 +1632,7 @@ function renderMonthlyHoursChart(data){
   } else if(useRange){
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     const vals=MONTHS.map(m=>monthHours(m));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
@@ -1755,7 +1755,7 @@ function renderOTDistributionChart(data){
   } else if(useRange){
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     const vals=MONTHS.map(m=>monthDist(m).reduce((a,b)=>a+b,0));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
@@ -1875,7 +1875,7 @@ function renderPctDriverChart(data){
   } else if(useRange){
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     const vals=MONTHS.map(m=>monthPct(m));
     const active=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
@@ -1927,7 +1927,7 @@ function renderWdWeChart(data){
   } else if(useRange){
     const mFrom=S.dateFrom?parseInt(S.dateFrom.slice(5,7),10)-1:0;
     const mTo=S.dateTo?parseInt(S.dateTo.slice(5,7),10)-1:11;
-    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i>=mFrom&&i<=mTo);
+    idxToShow=MONTHS.map((_,i)=>i).filter(i=>i<=mTo); // range aktif → Jan s/d bulan akhir range, day-window diterapkan ke tiap bulan
   } else {
     const check=MONTHS.map(m=>{ const r=monthWdWe(m); return r.wd+r.we; });
     const active=check.map((v,i)=>v>0?i:-1).filter(i=>i>=0);
