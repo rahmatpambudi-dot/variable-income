@@ -213,10 +213,17 @@ tr.total-row td{background:#f0f5fb;font-weight:600;border-top:2px solid #c2d0e5}
       <div class="kpi5" id="kpi-ov"></div>
       <div class="site-grid" id="site-cards"></div>
       <!-- Daily trend — only visible when range date active -->
-      <div class="ccard" id="daily-trend-wrap" style="display:none;margin-bottom:13px">
+      <div id="daily-trend-row" class="ch2" style="display:none">
+      <div class="ccard" id="daily-trend-wrap" style="display:none">
         <div class="ctitle" id="daily-trend-title">Trend Harian — IDR per Hari</div>
         <div class="csub" id="daily-trend-sub">OT + Insentif per hari dalam range</div>
         <canvas id="chartDailyTrend" height="150"></canvas>
+      </div>
+      <div class="ccard" id="daily-hours-wrap" style="display:none">
+        <div class="ctitle">Trend Harian — Jam OT per Hari</div>
+        <div class="csub" id="daily-hours-sub">Total jam OT per hari dalam range</div>
+        <canvas id="chartDailyHours" height="150"></canvas>
+      </div>
       </div>
       <div class="ch2">
         <div class="ccard">
@@ -1326,6 +1333,7 @@ function renderOverview(){
   renderMonthlyChart(data);
   renderAvgIncomeChart(data);
   renderDailyTrendChart(data);
+  renderDailyHoursChart(data);
   renderMonthlyHoursChart(data);
   renderAvgHoursChart(data);
   renderOTDistributionChart(data);
@@ -1601,6 +1609,82 @@ function renderDailyTrendChart(data){
       scales:{
         x:{ ticks:{ font:{size:9}, maxRotation:45, autoSkip:true, maxTicksLimit:20 }, grid:{color:'#e4ecf4'} },
         y:{ ticks:{ callback:v=>fmt(v), font:{size:9} }, grid:{color:'#e4ecf4'} }
+      }
+    }
+  });
+}
+
+function renderDailyHoursChart(data){
+  destroyChart('dailyHours');
+  const row  = document.getElementById('daily-trend-row');
+  const wrap = document.getElementById('daily-hours-wrap');
+  const idrWrap = document.getElementById('daily-trend-wrap');
+  if(!wrap||!row) return;
+  const useRange = !!(S.dateFrom || S.dateTo);
+  const idrVisible = idrWrap && idrWrap.style.display !== 'none';
+  // Jam hanya relevan utk OT (insentif tidak punya jam)
+  const show = useRange && S.showOT;
+  wrap.style.display = show ? '' : 'none';
+  row.style.display = (show || idrVisible) ? '' : 'none';
+  row.style.gridTemplateColumns = (show && idrVisible) ? '1fr 1fr' : '1fr';
+  if(!show) return;
+
+  const from = S.dateFrom || '2026-01-01';
+  const to   = S.dateTo   || '2026-12-31';
+  const hrs = {}, drv = {};
+  data.forEach(d => {
+    if(!d.dates) return;
+    Object.entries(d.dates).forEach(([dt,v]) => {
+      if(dt<from || dt>to) return;
+      const h = v.hours||0;
+      hrs[dt] = (hrs[dt]||0) + h;
+      if(h>0) drv[dt] = (drv[dt]||0) + 1;
+    });
+  });
+  const dates = Object.keys(hrs).sort();
+  const sub = document.getElementById('daily-hours-sub');
+  if(!dates.length){
+    if(sub) sub.textContent = 'Tidak ada data jam OT per hari di range ' + from + ' s/d ' + to;
+    return;
+  }
+  if(sub) sub.textContent = 'Total jam OT per hari — ' + from.slice(8,10)+'/'+from.slice(5,7) + ' s/d ' + to.slice(8,10)+'/'+to.slice(5,7);
+
+  const DAY_SHORT = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const labels = dates.map(dt => {
+    const [y,mm,dd] = dt.split('-');
+    return `${DAY_SHORT[new Date(+y,+mm-1,+dd).getDay()]} ${parseInt(dd)} ${MONTH_SHORT[parseInt(mm)-1]}`;
+  });
+  const hData = dates.map(dt => Math.round((hrs[dt]||0)*10)/10);
+  const dCnt  = dates.map(dt => drv[dt]||0);
+
+  charts['dailyHours'] = new Chart(document.getElementById('chartDailyHours'), {
+    type:'line',
+    data:{ labels, datasets:[{
+      label:'Jam OT', data:hData,
+      borderColor:'#8b5cf6', backgroundColor:'#8b5cf622',
+      pointRadius:3, pointHoverRadius:5, tension:0.3, fill:true, borderWidth:2
+    }]},
+    options:{
+      responsive:true,
+      layout:{padding:{top:16}},
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{size:10} } },
+        datalabels:{ display:false },
+        tooltip:{ callbacks:{
+          label: ctx => ` Jam OT: ${ctx.raw.toLocaleString('id-ID')} jam`,
+          afterLabel: ctx => {
+            const n = dCnt[ctx.dataIndex];
+            if(!n) return '';
+            const avg = ctx.raw/n;
+            return [` Driver OT: ${n}`, ` Rata-rata: ${avg.toFixed(1)} jam/driver (norma 4 jam/hari)`];
+          }
+        }}
+      },
+      scales:{
+        x:{ ticks:{ font:{size:9}, maxRotation:45, autoSkip:true, maxTicksLimit:20 }, grid:{color:'#e4ecf4'} },
+        y:{ beginAtZero:true, ticks:{ callback:v=>v.toLocaleString('id-ID')+' j', font:{size:9} }, grid:{color:'#e4ecf4'} }
       }
     }
   });
